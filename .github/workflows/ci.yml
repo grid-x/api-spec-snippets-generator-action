@@ -1,0 +1,34 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-action:
+    name: GitHub Actions Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+      - name: Add SHORT_SHA env property with commit short sha
+        run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> $GITHUB_ENV
+
+      - name: Test Action against gridX community example post
+        uses: ./
+        with:
+          discourse_url: ${{secrets.DISCOURSE_URL}}
+          discourse_post_id: ${{secrets.DISCOURSE_POST_ID}}
+          discourse_api_key: ${{secrets.DISCOURSE_API_KEY}}
+          discourse_user: ${{secrets.DISCOURSE_USER}}
+          github_sha: ${{env.SHORT_SHA}}
+          spec_file: ./petstore.yaml
