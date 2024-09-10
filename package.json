@@ -68,10 +68,9 @@
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
-    "oas": "^3.6.1",
-    "oas-normalize": "^11.1.1",
-    "openapi-snippet-cli": "^0.2.1",
-    "snippet-enricher-cli": "^0.0.8"
+    "@readme/oas-to-snippet": "^25.2.18",
+    "oas": "^24.9",
+    "oas-normalize": "^11.1.1"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
