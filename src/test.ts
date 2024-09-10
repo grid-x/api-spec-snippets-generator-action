@@ -7,5 +7,6 @@ const specFile = './solution-api.yaml'
 
 run(
   commit,
-  specFile
+  specFile,
+  ['go', 'python', 'shell', 'java', 'kotlin', 'swift']
 )
