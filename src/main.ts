@@ -1,21 +1,28 @@
 import * as core from '@actions/core'
-import OASNormalize from 'oas-normalize';
+import OASNormalize from 'oas-normalize'
 import Oas from 'oas'
-import { HttpMethods, OASDocument } from 'oas/types';
+import { HttpMethods, OASDocument } from 'oas/types'
 
 import { writeFile } from 'node:fs/promises'
-import oasToSnippet from '@readme/oas-to-snippet';
+import oasToSnippet from '@readme/oas-to-snippet'
 
-import { SupportedTargets } from '@readme/oas-to-snippet/languages';
-import { Operation } from 'oas/operation';
+import { SupportedTargets } from '@readme/oas-to-snippet/languages'
+import { Operation } from 'oas/operation'
 
-const DEFAULT_LANGUAGES: SupportedTargets[] = ['go', 'python', 'shell', 'java', 'kotlin', 'swift']
+const DEFAULT_LANGUAGES: SupportedTargets[] = [
+  'go',
+  'python',
+  'shell',
+  'java',
+  'kotlin',
+  'swift'
+]
 type Path = string
 type HttpVerb = HttpMethods
 type Snippet = {
-  lang: SupportedTargets,
-  label: string,
-  source: string,
+  lang: SupportedTargets
+  label: string
+  source: string
 }
 type SnippetDirectory = Record<Path, Record<HttpVerb, Snippet[]>>
 
@@ -29,20 +36,23 @@ export async function run(
   languages?: SupportedTargets[]
 ): Promise<void> {
   try {
-    const spec = new OASNormalize(specFile, { enablePaths: true });
+    const spec = new OASNormalize(specFile, { enablePaths: true })
     const version = await spec.version()
 
     if (version.specification !== 'openapi') {
-      throw new Error(`Only OpenAPI versions > 3 are supported. You used ${version.specification}`)
+      throw new Error(
+        `Only OpenAPI versions > 3 are supported. You used ${version.specification}`
+      )
     }
     spec
       .validate({ convertToLatest: true })
-      .then(definition => definition as OASDocument)  // we validate it's not legacy swagger above and exit otherwise
+      .then(definition => definition as OASDocument) // we validate it's not legacy swagger above and exit otherwise
       .then(definition => new Oas(definition)) // parse spec
-      .then(oas => generateSnippets(oas, (languages?.length ? languages : DEFAULT_LANGUAGES)))
+      .then(async oas =>
+        generateSnippets(oas, languages?.length ? languages : DEFAULT_LANGUAGES)
+      )
       .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-      .then(spec => writeFile(outFile, JSON.stringify(spec, null, 1)))
-
+      .then(async spec => writeFile(outFile, JSON.stringify(spec, null, 1)))
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
@@ -50,7 +60,7 @@ export async function run(
 }
 
 const capitalize = (str: string): string => {
-  return str.charAt(0).toUpperCase() + str.slice(1);
+  return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
 const highlighter = (lang: SupportedTargets): SupportedTargets => {
@@ -64,43 +74,51 @@ const highlighter = (lang: SupportedTargets): SupportedTargets => {
   }
 }
 
-const generateSnippets = async (oas: Oas, languages: SupportedTargets[]) => {
+const generateSnippets = async (
+  oas: Oas,
+  languages: SupportedTargets[]
+): Promise<{ oas: Oas; snippets: SnippetDirectory }> => {
   await oas.dereference() // inline schemas, required to generate examples
-  let snippets: SnippetDirectory = {}
+  const snippets: SnippetDirectory = {}
   // add snippet for each operation
-  Object.entries(oas.getPaths()).forEach(([path, operations]) => { // paths
-    Object.entries(operations).forEach(async ([verb, operation]) => { // http verbs per path
+  Object.entries(oas.getPaths()).forEach(([path, operations]) => {
+    // paths
+    Object.entries(operations).forEach(async ([verb, operation]) => {
+      // http verbs per path
       const method = verb as HttpMethods // need to explicitly cast here, the underlying type is off
 
-      languages
-        .forEach(lang => {
-          const snippet = oasToSnippet(
-            oas,
-            operation,
-            { body: generateExample(operation), header: {}, path: {}, query: {} }, // needs to be revisited once/if we maintain example values in the specs
-            {}, // no user/pass auth required, auth headers are in place
-            lang,
-          );
-          if (snippet.code) {
-            snippets[path] = snippets[path] ? snippets[path] : {} as any
-            snippets[path][method] = snippets[path][method] ? snippets[path][method] : []
-            snippets[path][method].push({
-              lang: highlighter(lang),
-              label: capitalize(lang),
-              source: snippet.code
-            })
-
-          }
-          else return undefined
-        });
+      languages.forEach(lang => {
+        const snippet = oasToSnippet(
+          oas,
+          operation,
+          { body: generateExample(operation), header: {}, path: {}, query: {} }, // needs to be revisited once/if we maintain example values in the specs
+          {}, // no user/pass auth required, auth headers are in place
+          lang
+        )
+        if (snippet.code) {
+          snippets[path] = snippets[path]
+            ? snippets[path]
+            : ({} as Record<HttpVerb, Snippet[]>)
+          snippets[path][method] = snippets[path][method]
+            ? snippets[path][method]
+            : []
+          snippets[path][method].push({
+            lang: highlighter(lang),
+            label: capitalize(lang),
+            source: snippet.code
+          })
+        } else return undefined
+      })
     })
-
-  });
+  })
   return { oas, snippets }
 }
 
-const addSnippetsToSpec = (spec: OASDocument, snippets: SnippetDirectory) => {
-  // the OAS library we use does not offer editing the spec, 
+const addSnippetsToSpec = (
+  spec: OASDocument,
+  snippets: SnippetDirectory
+): OASDocument => {
+  // the OAS library we use does not offer editing the spec,
   // so we need to mangle the plain API Spec Object ¯\_(ツ)_/¯
   Object.entries(snippets).forEach(([path, operationSnippets]) => {
     Object.entries(operationSnippets).forEach(([verb, langs]) => {
@@ -110,17 +128,18 @@ const addSnippetsToSpec = (spec: OASDocument, snippets: SnippetDirectory) => {
       if (operation) {
         operation['x-code-samples'] = Object.values(langs)
       } else {
-        throw new Error("Generated a snippet for a path that could not be found. This should never happen.")
+        throw new Error(
+          'Generated a snippet for a path that could not be found. This should never happen.'
+        )
       }
     })
   })
-  return spec;
+  return spec
 }
 
-const generateExample = (operation: Operation) => {
+const generateExample = (operation: Operation): unknown => {
   // currently only picks the first explicitly defined example
   // we might want to steal rapidoc example generation at some point
   // https://github.com/rapi-doc/RapiDoc/blob/ebda9d7b3ac0d1b35ee4210c4a493a01567f4c87/src/utils/schema-utils.js#L860
   return operation.getRequestBodyExamples()?.[0]?.examples?.[0]
 }
-
