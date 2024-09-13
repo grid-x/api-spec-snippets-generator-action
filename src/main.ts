@@ -44,6 +44,7 @@ export async function run(
         `Only OpenAPI versions > 3 are supported. You used ${version.specification}`
       )
     }
+    core.info(`Augmenting ${specFile} with code examples.`)
     spec
       .validate({ convertToLatest: true })
       .then(definition => definition as OASDocument) // we validate it's not legacy swagger above and exit otherwise
@@ -52,7 +53,8 @@ export async function run(
         generateSnippets(oas, languages?.length ? languages : DEFAULT_LANGUAGES)
       )
       .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-      .then(async spec => writeFile(outFile, JSON.stringify(spec, null, 1)))
+      .then(async spec => await writeFile(outFile, JSON.stringify(spec, null, 1)))
+      .then(() => core.info(`Wrote ${outFile}.`))
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
@@ -88,6 +90,7 @@ const generateSnippets = async (
       const method = verb as HttpMethods // need to explicitly cast here, the underlying type is off
 
       languages.forEach(lang => {
+        core.info(`Generating ${lang} snippet for ${verb} ${path}.`)
         const snippet = oasToSnippet(
           oas,
           operation,
@@ -124,8 +127,9 @@ const addSnippetsToSpec = (
     Object.entries(operationSnippets).forEach(([verb, langs]) => {
       // @ts-expect-error Didn't get the HTTP Verb type right yet, but this won't fail.
       const operation = spec?.paths?.[path]?.[verb]
-
+      
       if (operation) {
+        core.info(`Adding samples to ${verb} ${path}.`)
         operation['x-code-samples'] = Object.values(langs)
       } else {
         throw new Error(
