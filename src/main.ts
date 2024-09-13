@@ -62,18 +62,23 @@ const highlighter = (lang: SupportedTargets): SupportedTargets => {
   }
 }
 
-const generateSnippets = (oas: Oas, languages: SupportedTargets[]) => {
+const generateSnippets = async (oas: Oas, languages: SupportedTargets[]) => {
+  await oas.dereference() // inline schemas, required to generate examples
   let snippets: SnippetDirectory = {}
   // add snippet for each operation
   Object.entries(oas.getPaths()).forEach(([path, operations]) => { // paths
     Object.entries(operations).forEach(async ([verb, operation]) => { // http verbs per path
       const method = verb as HttpMethods // need to explicitly cast here, the underlying type is off
+      // if(operation.hasRequestBody() && operation.getRequestBodyExamples()[0]) {
+      // }
+      const bodyParams = operation.getRequestBodyExamples()?.[0]?.examples?.[0]
+
       languages
         .forEach(lang => {
           const snippet = oasToSnippet(
             oas,
             operation,
-            {}, // needs to be revisited once/if we maintain example values in the specs
+            { body: bodyParams, header: {}, path: {}, query: {} }, // needs to be revisited once/if we maintain example values in the specs
             {}, // no user/pass auth required, auth headers are in place
             lang,
           );
