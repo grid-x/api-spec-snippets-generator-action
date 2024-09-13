@@ -4,11 +4,10 @@ TODO: Synopsis
 
 ## Prerequisites / Inputs
 
-- `github_sha` - the commit hash to put into the post as reference, can be
-  obtained using `$GITHUB_SHA` when running in an action or with
-  `git rev-parse --short HEAD`
-- `spec_file` - the specification file to be uploaded, relative to the
-  repositories root
+- `spec_file` - The OAS file to add code samples to
+- `out_file` - Where to store the augmented OAS JSON
+- `languages`- Comma-separated list of languages for which to generate code samples.
+      Defaults to "go, python, shell, java, kotlin, swift"
 
 ## Instructions
 
