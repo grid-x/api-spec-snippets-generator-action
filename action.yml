@@ -10,27 +10,15 @@ branding:
 
 # Define your inputs here.
 inputs:
-  discourse_url:
-    description: 'your discourse instance domain, e.g. "community.acme.com'
-    required: true
-  discourse_post_id:
-    description: 'the ID of the Discourse post to update'
-    required: true
-  discourse_api_key:
-    description:
-      'your discourse API key. It needs `posts - edit` and `uploads - create`
-      permissions'
-    required: true
-  discourse_user:
-    description:
-      'the discourse user on whose behalf the action should be executed'
-    required: true
   spec_file:
-    description: 'the OAS file to upload'
+    description: 'The OAS file to add code samples to'
     required: true
-  github_sha:
-    description: 'short commit hash to be put into to post for traceability'
+  out_file:
+    description: 'Where to store the augmented OAS JSON'
     required: true
+  languages:
+    description: 'Comma-separated list of languages for which to generate code samples. Defaults to "go, python, shell, java, kotlin, swift"'
+    required: false
 
 runs:
   using: node20

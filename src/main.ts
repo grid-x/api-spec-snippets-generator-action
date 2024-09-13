@@ -25,6 +25,7 @@ type SnippetDirectory = Record<Path, Record<HttpVerb, Snippet[]>>
  */
 export async function run(
   specFile: string,
+  outFile: string,
   languages?: SupportedTargets[]
 ): Promise<void> {
   try {
@@ -40,7 +41,7 @@ export async function run(
       .then(definition => new Oas(definition)) // parse spec
       .then(oas => generateSnippets(oas, (languages?.length ? languages : DEFAULT_LANGUAGES)))
       .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-      .then(spec => writeFile(specFile + ".mod.json", JSON.stringify(spec, null, 1)))
+      .then(spec => writeFile(outFile, JSON.stringify(spec, null, 1)))
 
   } catch (error) {
     // Fail the workflow run if an error occurs
