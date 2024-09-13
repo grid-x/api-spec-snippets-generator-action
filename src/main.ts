@@ -7,6 +7,7 @@ import { writeFile } from 'node:fs/promises'
 import oasToSnippet from '@readme/oas-to-snippet';
 
 import { SupportedTargets } from '@readme/oas-to-snippet/languages';
+import { Operation } from 'oas/operation';
 
 const DEFAULT_LANGUAGES: SupportedTargets[] = ['go', 'python', 'shell', 'java', 'kotlin', 'swift']
 type Path = string
@@ -69,16 +70,13 @@ const generateSnippets = async (oas: Oas, languages: SupportedTargets[]) => {
   Object.entries(oas.getPaths()).forEach(([path, operations]) => { // paths
     Object.entries(operations).forEach(async ([verb, operation]) => { // http verbs per path
       const method = verb as HttpMethods // need to explicitly cast here, the underlying type is off
-      // if(operation.hasRequestBody() && operation.getRequestBodyExamples()[0]) {
-      // }
-      const bodyParams = operation.getRequestBodyExamples()?.[0]?.examples?.[0]
 
       languages
         .forEach(lang => {
           const snippet = oasToSnippet(
             oas,
             operation,
-            { body: bodyParams, header: {}, path: {}, query: {} }, // needs to be revisited once/if we maintain example values in the specs
+            { body: generateExample(operation), header: {}, path: {}, query: {} }, // needs to be revisited once/if we maintain example values in the specs
             {}, // no user/pass auth required, auth headers are in place
             lang,
           );
@@ -117,3 +115,11 @@ const addSnippetsToSpec = (spec: OASDocument, snippets: SnippetDirectory) => {
   })
   return spec;
 }
+
+const generateExample = (operation: Operation) => {
+  // currently only picks the first explicitly defined example
+  // we might want to steal rapidoc example generation at some point
+  // https://github.com/rapi-doc/RapiDoc/blob/ebda9d7b3ac0d1b35ee4210c4a493a01567f4c87/src/utils/schema-utils.js#L860
+  return operation.getRequestBodyExamples()?.[0]?.examples?.[0]
+}
+
