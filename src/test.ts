@@ -6,7 +6,6 @@ const commit: string = execSync('git rev-parse --short HEAD').toString()
 const specFile = './solution-api.yaml'
 
 run(
-  commit,
   specFile,
   ['go', 'python', 'shell', 'java', 'kotlin', 'swift']
 )

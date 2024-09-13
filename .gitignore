@@ -103,3 +103,5 @@ __tests__/runner/*
 *.code-workspace
 snippets
 solution-api.yaml.mod.json
+solution-api.yaml
+solution-api.yaml.mod.json
