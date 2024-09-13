@@ -17,7 +17,9 @@ inputs:
     description: 'Where to store the augmented OAS JSON'
     required: true
   languages:
-    description: 'Comma-separated list of languages for which to generate code samples. Defaults to "go, python, shell, java, kotlin, swift"'
+    description:
+      'Comma-separated list of languages for which to generate code samples.
+      Defaults to "go, python, shell, java, kotlin, swift"'
     required: false
 
 runs:

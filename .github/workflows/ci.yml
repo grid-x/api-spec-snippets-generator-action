@@ -23,7 +23,7 @@ jobs:
       - name: Add SHORT_SHA env property with commit short sha
         run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> $GITHUB_ENV
 
-      - name: Test Action against gridX community example post
+      - name: Test Action
         uses: ./
         with:
           spec_file: ./petstore.yaml
