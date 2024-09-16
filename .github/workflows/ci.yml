@@ -29,5 +29,6 @@ jobs:
 
       - name: Verify Output
         run: |
+          stat ./petstore-with-samples.json
           cat ./petstore-with-samples.json | grep x-code-samples
         shell: bash

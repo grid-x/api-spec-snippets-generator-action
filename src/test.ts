@@ -1,9 +1,6 @@
 import { run } from './main'
 
-//const specFile = './solution-api.yaml'
-//const outFile = './solution-api.mod.json'
-
-const specFile = './der-controlling.yaml'
-const outFile = './der-controlling.mod.json'
+const specFile = './petstore.yaml'
+const outFile = './petstore-with-samples.json'
 
 run(specFile, outFile, ['go', 'python', 'shell', 'java', 'kotlin', 'swift'])
