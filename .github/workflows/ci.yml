@@ -31,5 +31,5 @@ jobs:
       - name: Verify Output
         run: |
           stat ./petstore-with-samples.json
-          cat ./petstore-with-samples.json | grep 'x-code-samples'
+          grep 'x-code-samples' < petstore-with-samples.json
         shell: bash
