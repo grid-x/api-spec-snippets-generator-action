@@ -50,7 +50,7 @@ The results look like this.
 ## Instructions
 
 Add a GitHub Action in your workflow, passing the input spec file (json or
-yaml), the desired output file location (json) and, optionally, the list of
+YAML), the desired output file location (json) and, optionally, the list of
 languages to generate snippets for.
 
 ```yaml
