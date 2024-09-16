@@ -6,8 +6,8 @@ TODO: Synopsis
 
 - `spec_file` - The OAS file to add code samples to
 - `out_file` - Where to store the augmented OAS JSON
-- `languages`- Comma-separated list of languages for which to generate code samples.
-      Defaults to "go, python, shell, java, kotlin, swift"
+- `languages`- Comma-separated list of languages for which to generate code
+  samples. Defaults to "go, python, shell, java, kotlin, swift"
 
 ## Instructions
 

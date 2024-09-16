@@ -79428,13 +79428,15 @@ async function run(specFile, outFile, languages) {
         if (version.specification !== 'openapi') {
             throw new Error(`Only OpenAPI versions > 3 are supported. You used ${version.specification}`);
         }
+        core.info(`Augmenting ${specFile} with code examples.`);
         spec
             .validate({ convertToLatest: true })
             .then(definition => definition) // we validate it's not legacy swagger above and exit otherwise
             .then(definition => new oas_1.default(definition)) // parse spec
             .then(async (oas) => generateSnippets(oas, languages?.length ? languages : DEFAULT_LANGUAGES))
             .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-            .then(async (spec) => (0, promises_1.writeFile)(outFile, JSON.stringify(spec, null, 1)));
+            .then(async (spec) => await (0, promises_1.writeFile)(outFile, JSON.stringify(spec, null, 1)))
+            .then(() => core.info(`Wrote ${outFile}.`));
     }
     catch (error) {
         // Fail the workflow run if an error occurs
@@ -79465,6 +79467,7 @@ const generateSnippets = async (oas, languages) => {
             // http verbs per path
             const method = verb; // need to explicitly cast here, the underlying type is off
             languages.forEach(lang => {
+                core.info(`Generating ${lang} snippet for ${verb} ${path}.`);
                 const snippet = (0, oas_to_snippet_1.default)(oas, operation, { body: generateExample(operation), header: {}, path: {}, query: {} }, // needs to be revisited once/if we maintain example values in the specs
                 {}, // no user/pass auth required, auth headers are in place
                 lang);
@@ -79496,6 +79499,7 @@ const addSnippetsToSpec = (spec, snippets) => {
             // @ts-expect-error Didn't get the HTTP Verb type right yet, but this won't fail.
             const operation = spec?.paths?.[path]?.[verb];
             if (operation) {
+                core.info(`Adding samples to ${verb} ${path}.`);
                 operation['x-code-samples'] = Object.values(langs);
             }
             else {

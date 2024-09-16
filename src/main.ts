@@ -53,7 +53,9 @@ export async function run(
         generateSnippets(oas, languages?.length ? languages : DEFAULT_LANGUAGES)
       )
       .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-      .then(async spec => await writeFile(outFile, JSON.stringify(spec, null, 1)))
+      .then(
+        async spec => await writeFile(outFile, JSON.stringify(spec, null, 1))
+      )
       .then(() => core.info(`Wrote ${outFile}.`))
   } catch (error) {
     // Fail the workflow run if an error occurs
@@ -127,7 +129,7 @@ const addSnippetsToSpec = (
     Object.entries(operationSnippets).forEach(([verb, langs]) => {
       // @ts-expect-error Didn't get the HTTP Verb type right yet, but this won't fail.
       const operation = spec?.paths?.[path]?.[verb]
-      
+
       if (operation) {
         core.info(`Adding samples to ${verb} ${path}.`)
         operation['x-code-samples'] = Object.values(langs)
