@@ -26,6 +26,8 @@ type Snippet = {
 }
 type SnippetDirectory = Record<Path, Record<HttpVerb, Snippet[]>>
 
+const EXTENSION_TAG = 'x-code-samples'
+
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -132,7 +134,7 @@ const addSnippetsToSpec = (
 
       if (operation) {
         core.info(`Adding samples to ${verb} ${path}.`)
-        operation['x-code-samples'] = Object.values(langs)
+        operation[EXTENSION_TAG] = Object.values(langs)
       } else {
         throw new Error(
           'Generated a snippet for a path that could not be found. This should never happen.'

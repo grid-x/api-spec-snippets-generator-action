@@ -20,11 +20,14 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
-      - name: Add SHORT_SHA env property with commit short sha
-        run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> $GITHUB_ENV
 
       - name: Test Action
         uses: ./
         with:
           spec_file: ./petstore.yaml
           out_file: ./petstore-with-samples.json
+
+      - name: Verify Output
+        run: |
+          cat ./petstore-with-samples.json | grep x-code-samples
+        shell: bash
