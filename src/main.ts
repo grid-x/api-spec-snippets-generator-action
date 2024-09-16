@@ -46,6 +46,9 @@ export async function run(
         `Only OpenAPI versions > 3 are supported. You used ${version.specification}`
       )
     }
+    if (! (languages && languages.length)) {
+      console.warn("No languages to generate specified. This action will run but not do anything.")
+    }
     core.info(`Augmenting ${specFile} with code examples.`)
     spec
       .validate({ convertToLatest: true })
