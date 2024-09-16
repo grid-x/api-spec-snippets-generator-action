@@ -11,26 +11,26 @@ no example, the payload will be empty/`null`.
 
 The following languages are supported:
 
-- c
-- clojure
-- csharp
-- go
-- http
-- java
-- javascript
-- json
-- kotlin
-- node
-- cplusplus
-- objectivec
-- ocaml
-- php
-- powershell
-- python
-- r
-- ruby
-- shell
-- swift
+- `c`
+- `clojure`
+- `csharp`
+- `go`
+- `http`
+- `java`
+- `javascript`
+- `json`
+- `kotlin`
+- `node`
+- `cplusplus`
+- `objectivec`
+- `ocaml`
+- `php`
+- `powershell`
+- `python`
+- `r`
+- `ruby`
+- `shell`
+- `swift`
 
 The results look like this.
 
