@@ -52,7 +52,7 @@ export async function run(
       .then(definition => definition as OASDocument) // we validate it's not legacy swagger above and exit otherwise
       .then(definition => new Oas(definition)) // parse spec
       .then(async oas =>
-        generateSnippets(oas, languages?.length ? languages : DEFAULT_LANGUAGES)
+        generateSnippets(oas, (languages && languages.length) ? languages : DEFAULT_LANGUAGES)
       )
       .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
       .then(
