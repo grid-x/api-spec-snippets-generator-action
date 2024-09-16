@@ -99,7 +99,7 @@ const generateSnippets = async (
 ): Promise<{ oas: Oas; snippets: SnippetDirectory }> => {
   await oas.dereference() // inline schemas, required to generate examples
   const snippets: SnippetDirectory = {}
-  console.info(`Generating snippets for ${languages.join(' ,')}`)
+  console.info(`Generating snippets for ${languages.join(', ')}`)
   // add snippet for each operation
   Object.entries(oas.getPaths()).forEach(([path, operations]) => {
     // paths
