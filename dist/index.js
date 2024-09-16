@@ -79429,12 +79429,15 @@ async function run(specFile, outFile, languages) {
         if (version.specification !== 'openapi') {
             throw new Error(`Only OpenAPI versions > 3 are supported. You used ${version.specification}`);
         }
+        if (!(languages && languages.length)) {
+            console.warn('No languages to generate specified. This action will run but not do anything.');
+        }
         core.info(`Augmenting ${specFile} with code examples.`);
         spec
             .validate({ convertToLatest: true })
             .then(definition => definition) // we validate it's not legacy swagger above and exit otherwise
             .then(definition => new oas_1.default(definition)) // parse spec
-            .then(async (oas) => generateSnippets(oas, languages?.length ? languages : DEFAULT_LANGUAGES))
+            .then(async (oas) => generateSnippets(oas, languages && languages.length ? languages : DEFAULT_LANGUAGES))
             .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
             .then(async (spec) => await (0, promises_1.writeFile)(outFile, JSON.stringify(spec, null, 1)))
             .then(() => core.info(`Wrote ${outFile}.`));

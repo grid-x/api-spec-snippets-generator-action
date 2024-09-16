@@ -46,8 +46,10 @@ export async function run(
         `Only OpenAPI versions > 3 are supported. You used ${version.specification}`
       )
     }
-    if (! (languages && languages.length)) {
-      console.warn("No languages to generate specified. This action will run but not do anything.")
+    if (!(languages && languages.length)) {
+      console.warn(
+        'No languages to generate specified. This action will run but not do anything.'
+      )
     }
     core.info(`Augmenting ${specFile} with code examples.`)
     spec
@@ -55,7 +57,10 @@ export async function run(
       .then(definition => definition as OASDocument) // we validate it's not legacy swagger above and exit otherwise
       .then(definition => new Oas(definition)) // parse spec
       .then(async oas =>
-        generateSnippets(oas, (languages && languages.length) ? languages : DEFAULT_LANGUAGES)
+        generateSnippets(
+          oas,
+          languages && languages.length ? languages : DEFAULT_LANGUAGES
+        )
       )
       .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
       .then(
