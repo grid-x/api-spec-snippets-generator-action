@@ -1,7 +1,13 @@
 # Generate Code Snippets from an OpenAPI specification
 
-This Github Action takes an OpenAPI spec, generates code samples for each operation and adds them to the spec using [the `x-code-samples` extension](https://redocly.com/docs/api-reference-docs/specification-extensions/x-code-samples). 
-If you [specified `examples` in your endpoint](https://swagger.io/docs/specification/adding-examples/), it takes the first example as the payload when generating snippets. If there is no example, the payload will be empty/`null`.
+This GitHub Action takes an OpenAPI spec, generates code samples for each
+operation and adds them to the spec using
+[the `x-code-samples` extension](https://redocly.com/docs/api-reference-docs/specification-extensions/x-code-samples).
+
+If you
+[specified `examples` in your endpoint](https://swagger.io/docs/specification/adding-examples/),
+it takes the first example as the payload when generating snippets. If there is
+no example, the payload will be empty/`null`.
 
 The following languages are supported:
 
@@ -28,16 +34,11 @@ The following languages are supported:
 
 The results look like this.
 
-![readme.com](./docs/readme.png)
-_readme.com_
+![readme.com](./docs/readme.png) _readme.com_
 
-![rapidoc](./docs/rapidoc.png)
-_RapiDoc_
+![rapidoc](./docs/rapidoc.png) _RapiDoc_
 
-![redoc](./docs/redoc.png)
-_Redoc_
-
-
+![redoc](./docs/redoc.png) _Redoc_
 
 ## Prerequisites / Inputs
 
@@ -48,10 +49,11 @@ _Redoc_
 
 ## Instructions
 
-Add a Github Action in your workflow, passing the input spec file (json or yaml), the desired output file location (json) and, optionally, the list of languages to generate snippets for.
+Add a GitHub Action in your workflow, passing the input spec file (json or
+yaml), the desired output file location (json) and, optionally, the list of
+languages to generate snippets for.
 
 ```yaml
-
 - name: Generate Code Samples
   uses: grid-x/api-spec-snippets-generator-action@v6
   with:
