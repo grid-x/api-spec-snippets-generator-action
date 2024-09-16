@@ -26,9 +26,10 @@ jobs:
         with:
           spec_file: ./petstore.yaml
           out_file: ./petstore-with-samples.json
+          languages: go,python,shell,java,kotlin,swift,csharp
 
       - name: Verify Output
         run: |
           stat ./petstore-with-samples.json
-          cat ./petstore-with-samples.json | grep x-code-samples
+          cat ./petstore-with-samples.json | grep 'x-code-samples'
         shell: bash
