@@ -73,8 +73,13 @@ export async function run(
   }
 }
 
-const capitalize = (str: string): string => {
-  return str.charAt(0).toUpperCase() + str.slice(1)
+const label = (lang: SupportedTargets): string => {
+  switch (lang) {
+    case 'csharp':
+      return 'C#'
+    default:
+      return lang.charAt(0).toUpperCase() + lang.slice(1)
+  }
 }
 
 const highlighter = (lang: SupportedTargets): SupportedTargets => {
@@ -94,6 +99,7 @@ const generateSnippets = async (
 ): Promise<{ oas: Oas; snippets: SnippetDirectory }> => {
   await oas.dereference() // inline schemas, required to generate examples
   const snippets: SnippetDirectory = {}
+  console.info(`Generating snippets for ${languages.join(' ,')}`)
   // add snippet for each operation
   Object.entries(oas.getPaths()).forEach(([path, operations]) => {
     // paths
@@ -119,7 +125,7 @@ const generateSnippets = async (
             : []
           snippets[path][method].push({
             lang: highlighter(lang),
-            label: capitalize(lang),
+            label: label(lang),
             source: snippet.code
           })
         } else return undefined
