@@ -77,6 +77,10 @@ const label = (lang: SupportedTargets): string => {
   switch (lang) {
     case 'csharp':
       return 'C#'
+    case 'cplusplus':
+      return 'C++'
+    case 'objectivec':
+      return 'Objective-C'
     default:
       return lang.charAt(0).toUpperCase() + lang.slice(1)
   }
