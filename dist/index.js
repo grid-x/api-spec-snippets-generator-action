@@ -79469,7 +79469,7 @@ const highlighter = (lang) => {
 const generateSnippets = async (oas, languages) => {
     await oas.dereference(); // inline schemas, required to generate examples
     const snippets = {};
-    console.info(`Generating snippets for ${languages.join(' ,')}`);
+    console.info(`Generating snippets for ${languages.join(', ')}`);
     // add snippet for each operation
     Object.entries(oas.getPaths()).forEach(([path, operations]) => {
         // paths
