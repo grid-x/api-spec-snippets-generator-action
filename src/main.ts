@@ -167,5 +167,7 @@ const generateExample = (operation: Operation): unknown => {
   // currently only picks the first explicitly defined example
   // we might want to steal rapidoc example generation at some point
   // https://github.com/rapi-doc/RapiDoc/blob/ebda9d7b3ac0d1b35ee4210c4a493a01567f4c87/src/utils/schema-utils.js#L860
-  return operation.getRequestBodyExamples()?.[0]?.examples?.[0]
+  const maybeExample = operation.getRequestBodyExamples()?.[0]?.examples?.[0]
+  //return maybeExample
+  return maybeExample?.value ? maybeExample?.value : maybeExample
 }
