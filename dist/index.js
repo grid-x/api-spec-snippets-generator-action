@@ -51783,102 +51783,114 @@ exports.parse = parse;
 exports.compile = compile;
 exports.match = match;
 exports.pathToRegexp = pathToRegexp;
+exports.stringify = stringify;
 const DEFAULT_DELIMITER = "/";
 const NOOP_VALUE = (value) => value;
-const ID_CHAR = /^\p{XID_Continue}$/u;
+const ID_START = /^[$_\p{ID_Start}]$/u;
+const ID_CONTINUE = /^[$\u200c\u200d\p{ID_Continue}]$/u;
 const DEBUG_URL = "https://git.new/pathToRegexpError";
 const SIMPLE_TOKENS = {
-    "!": "!",
-    "@": "@",
-    ";": ";",
-    ",": ",",
-    "*": "*",
-    "+": "+",
-    "?": "?",
+    // Groups.
     "{": "{",
     "}": "}",
+    // Reserved.
+    "(": "(",
+    ")": ")",
+    "[": "[",
+    "]": "]",
+    "+": "+",
+    "?": "?",
+    "!": "!",
 };
+/**
+ * Escape text for stringify to path.
+ */
+function escapeText(str) {
+    return str.replace(/[{}()\[\]+?!:*]/g, "\\$&");
+}
+/**
+ * Escape a regular expression string.
+ */
+function escape(str) {
+    return str.replace(/[.+*?^${}()[\]|/\\]/g, "\\$&");
+}
 /**
  * Tokenize input string.
  */
-function lexer(str) {
+function* lexer(str) {
     const chars = [...str];
-    const tokens = [];
     let i = 0;
+    function name() {
+        let value = "";
+        if (ID_START.test(chars[++i])) {
+            value += chars[i];
+            while (ID_CONTINUE.test(chars[++i])) {
+                value += chars[i];
+            }
+        }
+        else if (chars[i] === '"') {
+            let pos = i;
+            while (i < chars.length) {
+                if (chars[++i] === '"') {
+                    i++;
+                    pos = 0;
+                    break;
+                }
+                if (chars[i] === "\\") {
+                    value += chars[++i];
+                }
+                else {
+                    value += chars[i];
+                }
+            }
+            if (pos) {
+                throw new TypeError(`Unterminated quote at ${pos}: ${DEBUG_URL}`);
+            }
+        }
+        if (!value) {
+            throw new TypeError(`Missing parameter name at ${i}: ${DEBUG_URL}`);
+        }
+        return value;
+    }
     while (i < chars.length) {
         const value = chars[i];
         const type = SIMPLE_TOKENS[value];
         if (type) {
-            tokens.push({ type, index: i++, value });
-            continue;
+            yield { type, index: i++, value };
         }
-        if (value === "\\") {
-            tokens.push({ type: "ESCAPED", index: i++, value: chars[i++] });
-            continue;
+        else if (value === "\\") {
+            yield { type: "ESCAPED", index: i++, value: chars[i++] };
         }
-        if (value === ":") {
-            let name = "";
-            while (ID_CHAR.test(chars[++i])) {
-                name += chars[i];
-            }
-            if (!name) {
-                throw new TypeError(`Missing parameter name at ${i}`);
-            }
-            tokens.push({ type: "NAME", index: i, value: name });
-            continue;
+        else if (value === ":") {
+            const value = name();
+            yield { type: "PARAM", index: i, value };
         }
-        if (value === "(") {
-            const pos = i++;
-            let count = 1;
-            let pattern = "";
-            if (chars[i] === "?") {
-                throw new TypeError(`Pattern cannot start with "?" at ${i}`);
-            }
-            while (i < chars.length) {
-                if (chars[i] === "\\") {
-                    pattern += chars[i++] + chars[i++];
-                    continue;
-                }
-                if (chars[i] === ")") {
-                    count--;
-                    if (count === 0) {
-                        i++;
-                        break;
-                    }
-                }
-                else if (chars[i] === "(") {
-                    count++;
-                    if (chars[i + 1] !== "?") {
-                        throw new TypeError(`Capturing groups are not allowed at ${i}`);
-                    }
-                }
-                pattern += chars[i++];
-            }
-            if (count)
-                throw new TypeError(`Unbalanced pattern at ${pos}`);
-            if (!pattern)
-                throw new TypeError(`Missing pattern at ${pos}`);
-            tokens.push({ type: "PATTERN", index: i, value: pattern });
-            continue;
+        else if (value === "*") {
+            const value = name();
+            yield { type: "WILDCARD", index: i, value };
         }
-        tokens.push({ type: "CHAR", index: i, value: chars[i++] });
+        else {
+            yield { type: "CHAR", index: i, value: chars[i++] };
+        }
     }
-    tokens.push({ type: "END", index: i, value: "" });
-    return new Iter(tokens);
+    return { type: "END", index: i, value: "" };
 }
 class Iter {
     constructor(tokens) {
         this.tokens = tokens;
-        this.index = 0;
     }
     peek() {
-        return this.tokens[this.index];
+        if (!this._peek) {
+            const next = this.tokens.next();
+            this._peek = next.value;
+        }
+        return this._peek;
     }
     tryConsume(type) {
         const token = this.peek();
         if (token.type !== type)
             return;
-        this.index++;
+        this._peek = undefined; // Reset after consumed.
         return token.value;
     }
     consume(type) {
@@ -51896,17 +51908,13 @@ class Iter {
         }
         return result;
     }
-    modifier() {
-        return this.tryConsume("?") || this.tryConsume("*") || this.tryConsume("+");
-    }
 }
 /**
- * Tokenized path instance. Can we passed around instead of string.
+ * Tokenized path instance.
  */
 class TokenData {
-    constructor(tokens, delimiter) {
+    constructor(tokens) {
         this.tokens = tokens;
-        this.delimiter = delimiter;
     }
 }
 exports.TokenData = TokenData;
@@ -51914,299 +51922,261 @@ exports.TokenData = TokenData;
  * Parse a string for the raw tokens.
  */
 function parse(str, options = {}) {
-    const { encodePath = NOOP_VALUE, delimiter = encodePath(DEFAULT_DELIMITER) } = options;
-    const tokens = [];
-    const it = lexer(str);
-    let key = 0;
-    do {
-        const path = it.text();
-        if (path)
-            tokens.push(encodePath(path));
-        const name = it.tryConsume("NAME");
-        const pattern = it.tryConsume("PATTERN");
-        if (name || pattern) {
-            tokens.push({
-                name: name || String(key++),
-                pattern,
-            });
-            const next = it.peek();
-            if (next.type === "*") {
-                throw new TypeError(`Unexpected * at ${next.index}, you probably want \`/*\` or \`{/:foo}*\`: ${DEBUG_URL}`);
+    const { encodePath = NOOP_VALUE } = options;
+    const it = new Iter(lexer(str));
+    function consume(endType) {
+        const tokens = [];
+        while (true) {
+            const path = it.text();
+            if (path)
+                tokens.push({ type: "text", value: encodePath(path) });
+            const param = it.tryConsume("PARAM");
+            if (param) {
+                tokens.push({
+                    type: "param",
+                    name: param,
+                });
+                continue;
             }
-            continue;
+            const wildcard = it.tryConsume("WILDCARD");
+            if (wildcard) {
+                tokens.push({
+                    type: "wildcard",
+                    name: wildcard,
+                });
+                continue;
+            }
+            const open = it.tryConsume("{");
+            if (open) {
+                tokens.push({
+                    type: "group",
+                    tokens: consume("}"),
+                });
+                continue;
+            }
+            it.consume(endType);
+            return tokens;
         }
-        const asterisk = it.tryConsume("*");
-        if (asterisk) {
-            tokens.push({
-                name: String(key++),
-                pattern: `(?:(?!${escape(delimiter)}).)*`,
-                modifier: "*",
-                separator: delimiter,
-            });
-            continue;
-        }
-        const open = it.tryConsume("{");
-        if (open) {
-            const prefix = it.text();
-            const name = it.tryConsume("NAME");
-            const pattern = it.tryConsume("PATTERN");
-            const suffix = it.text();
-            const separator = it.tryConsume(";") && it.text();
-            it.consume("}");
-            const modifier = it.modifier();
-            tokens.push({
-                name: name || (pattern ? String(key++) : ""),
-                prefix: encodePath(prefix),
-                suffix: encodePath(suffix),
-                pattern,
-                modifier,
-                separator,
-            });
-            continue;
-        }
-        it.consume("END");
-        break;
-    } while (true);
-    return new TokenData(tokens, delimiter);
+    }
+    const tokens = consume("END");
+    return new TokenData(tokens);
 }
 /**
  * Compile a string to a template function for the path.
  */
 function compile(path, options = {}) {
+    const { encode = encodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
     const data = path instanceof TokenData ? path : parse(path, options);
-    return compileTokens(data, options);
+    const fn = tokensToFunction(data.tokens, delimiter, encode);
+    return function path(data = {}) {
+        const [path, ...missing] = fn(data);
+        if (missing.length) {
+            throw new TypeError(`Missing parameters: ${missing.join(", ")}`);
+        }
+        return path;
+    };
+}
+function tokensToFunction(tokens, delimiter, encode) {
+    const encoders = tokens.map((token) => tokenToFunction(token, delimiter, encode));
+    return (data) => {
+        const result = [""];
+        for (const encoder of encoders) {
+            const [value, ...extras] = encoder(data);
+            result[0] += value;
+            result.push(...extras);
+        }
+        return result;
+    };
 }
 /**
  * Convert a single token into a path building function.
  */
-function tokenToFunction(token, encode) {
-    if (typeof token === "string") {
-        return () => token;
+function tokenToFunction(token, delimiter, encode) {
+    if (token.type === "text")
+        return () => [token.value];
+    if (token.type === "group") {
+        const fn = tokensToFunction(token.tokens, delimiter, encode);
+        return (data) => {
+            const [value, ...missing] = fn(data);
+            if (!missing.length)
+                return [value];
+            return [""];
+        };
     }
     const encodeValue = encode || NOOP_VALUE;
-    const repeated = token.modifier === "+" || token.modifier === "*";
-    const optional = token.modifier === "?" || token.modifier === "*";
-    const { prefix = "", suffix = "", separator = suffix + prefix } = token;
-    if (encode && repeated) {
-        const stringify = (value, index) => {
-            if (typeof value !== "string") {
-                throw new TypeError(`Expected "${token.name}/${index}" to be a string`);
-            }
-            return encodeValue(value);
-        };
-        const compile = (value) => {
-            if (!Array.isArray(value)) {
-                throw new TypeError(`Expected "${token.name}" to be an array`);
-            }
-            if (value.length === 0)
-                return "";
-            return prefix + value.map(stringify).join(separator) + suffix;
-        };
-        if (optional) {
-            return (data) => {
-                const value = data[token.name];
-                if (value == null)
-                    return "";
-                return value.length ? compile(value) : "";
-            };
-        }
-        return (data) => {
-            const value = data[token.name];
-            return compile(value);
-        };
-    }
-    const stringify = (value) => {
-        if (typeof value !== "string") {
-            throw new TypeError(`Expected "${token.name}" to be a string`);
-        }
-        return prefix + encodeValue(value) + suffix;
-    };
-    if (optional) {
+    if (token.type === "wildcard" && encode !== false) {
         return (data) => {
             const value = data[token.name];
             if (value == null)
-                return "";
-            return stringify(value);
+                return ["", token.name];
+            if (!Array.isArray(value) || value.length === 0) {
+                throw new TypeError(`Expected "${token.name}" to be a non-empty array`);
+            }
+            return [
+                value
+                    .map((value, index) => {
+                    if (typeof value !== "string") {
+                        throw new TypeError(`Expected "${token.name}/${index}" to be a string`);
+                    }
+                    return encodeValue(value);
+                })
+                    .join(delimiter),
+            ];
         };
     }
     return (data) => {
         const value = data[token.name];
-        return stringify(value);
+        if (value == null)
+            return ["", token.name];
+        if (typeof value !== "string") {
+            throw new TypeError(`Expected "${token.name}" to be a string`);
+        }
+        return [encodeValue(value)];
     };
 }
 /**
- * Transform tokens into a path building function.
- */
-function compileTokens(data, options) {
-    const { encode = encodeURIComponent, loose = true, validate = true, strict = false, } = options;
-    const flags = toFlags(options);
-    const stringify = toStringify(loose, data.delimiter);
-    const sources = toRegExpSource(data, stringify, [], flags, strict);
-    // Compile all the tokens into regexps.
-    const encoders = data.tokens.map((token, index) => {
-        const fn = tokenToFunction(token, encode);
-        if (!validate || typeof token === "string")
-            return fn;
-        const validRe = new RegExp(`^${sources[index]}$`, flags);
-        return (data) => {
-            const value = fn(data);
-            if (!validRe.test(value)) {
-                throw new TypeError(`Invalid value for "${token.name}": ${JSON.stringify(value)}`);
-            }
-            return value;
-        };
-    });
-    return function path(data = {}) {
-        let path = "";
-        for (const encoder of encoders)
-            path += encoder(data);
-        return path;
-    };
-}
-/**
- * Create path match function from `path-to-regexp` spec.
+ * Transform a path into a match function.
  */
 function match(path, options = {}) {
-    const { decode = decodeURIComponent, loose = true, delimiter = DEFAULT_DELIMITER, } = options;
-    const re = pathToRegexp(path, options);
-    const stringify = toStringify(loose, delimiter);
-    const decoders = re.keys.map((key) => {
-        if (decode && (key.modifier === "+" || key.modifier === "*")) {
-            const { prefix = "", suffix = "", separator = suffix + prefix } = key;
-            const re = new RegExp(stringify(separator), "g");
-            return (value) => value.split(re).map(decode);
-        }
-        return decode || NOOP_VALUE;
+    const { decode = decodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
+    const { regexp, keys } = pathToRegexp(path, options);
+    const decoders = keys.map((key) => {
+        if (decode === false)
+            return NOOP_VALUE;
+        if (key.type === "param")
+            return decode;
+        return (value) => value.split(delimiter).map(decode);
     });
     return function match(input) {
-        const m = re.exec(input);
+        const m = regexp.exec(input);
         if (!m)
             return false;
-        const { 0: path, index } = m;
+        const path = m[0];
         const params = Object.create(null);
         for (let i = 1; i < m.length; i++) {
             if (m[i] === undefined)
                 continue;
-            const key = re.keys[i - 1];
+            const key = keys[i - 1];
             const decoder = decoders[i - 1];
             params[key.name] = decoder(m[i]);
         }
-        return { path, index, params };
+        return { path, params };
     };
 }
-/**
- * Escape a regular expression string.
- */
-function escape(str) {
-    return str.replace(/[.+*?^${}()[\]|/\\]/g, "\\$&");
-}
-/**
- * Escape and repeat loose characters for regular expressions.
- */
-function looseReplacer(value, loose) {
-    const escaped = escape(value);
-    return loose ? `(?:${escaped})+(?!${escaped})` : escaped;
-}
-/**
- * Encode all non-delimiter characters using the encode function.
- */
-function toStringify(loose, delimiter) {
-    if (!loose)
-        return escape;
-    const re = new RegExp(`(?:(?!${escape(delimiter)}).)+|(.)`, "g");
-    return (value) => value.replace(re, looseReplacer);
-}
-/**
- * Get the flags for a regexp from the options.
- */
-function toFlags(options) {
-    return options.sensitive ? "" : "i";
-}
-/**
- * Expose a function for taking tokens and returning a RegExp.
- */
-function pathToSource(path, keys, flags, options) {
-    const data = path instanceof TokenData ? path : parse(path, options);
-    const { trailing = true, loose = true, start = true, end = true, strict = false, } = options;
-    const stringify = toStringify(loose, data.delimiter);
-    const sources = toRegExpSource(data, stringify, keys, flags, strict);
-    let pattern = start ? "^" : "";
-    pattern += sources.join("");
-    if (trailing)
-        pattern += `(?:${stringify(data.delimiter)}$)?`;
-    pattern += end ? "$" : `(?=${escape(data.delimiter)}|$)`;
-    return pattern;
-}
-/**
- * Convert a token into a regexp string (re-used for path validation).
- */
-function toRegExpSource(data, stringify, keys, flags, strict) {
-    const defaultPattern = `(?:(?!${escape(data.delimiter)}).)+?`;
-    let backtrack = "";
-    let safe = true;
-    return data.tokens.map((token) => {
-        if (typeof token === "string") {
-            backtrack = token;
-            return stringify(token);
-        }
-        const { prefix = "", suffix = "", separator = suffix + prefix, modifier = "", } = token;
-        const pre = stringify(prefix);
-        const post = stringify(suffix);
-        if (token.name) {
-            const pattern = token.pattern ? `(?:${token.pattern})` : defaultPattern;
-            const re = checkPattern(pattern, token.name, flags);
-            safe || (safe = safePattern(re, prefix || backtrack));
-            if (!safe) {
-                throw new TypeError(`Ambiguous pattern for "${token.name}": ${DEBUG_URL}`);
-            }
-            safe = !strict || safePattern(re, suffix);
-            backtrack = "";
-            keys.push(token);
-            if (modifier === "+" || modifier === "*") {
-                const mod = modifier === "*" ? "?" : "";
-                const sep = stringify(separator);
-                if (!sep) {
-                    throw new TypeError(`Missing separator for "${token.name}": ${DEBUG_URL}`);
-                }
-                safe || (safe = !strict || safePattern(re, separator));
-                if (!safe) {
-                    throw new TypeError(`Ambiguous pattern for "${token.name}" separator: ${DEBUG_URL}`);
-                }
-                safe = !strict;
-                return `(?:${pre}(${pattern}(?:${sep}${pattern})*)${post})${mod}`;
-            }
-            return `(?:${pre}(${pattern})${post})${modifier}`;
-        }
-        return `(?:${pre}${post})${modifier}`;
-    });
-}
-function checkPattern(pattern, name, flags) {
-    try {
-        return new RegExp(`^${pattern}$`, flags);
-    }
-    catch (err) {
-        throw new TypeError(`Invalid pattern for "${name}": ${err.message}`);
-    }
-}
-function safePattern(re, value) {
-    return value ? !re.test(value) : false;
-}
-/**
- * Normalize the given path string, returning a regular expression.
- *
- * An empty array can be passed in for the keys, which will hold the
- * placeholder key descriptions. For example, using `/user/:id`, `keys` will
- * contain `[{ name: 'id', delimiter: '/', optional: false, repeat: false }]`.
- */
 function pathToRegexp(path, options = {}) {
+    const { delimiter = DEFAULT_DELIMITER, end = true, sensitive = false, trailing = true, } = options;
     const keys = [];
-    const flags = toFlags(options);
-    if (Array.isArray(path)) {
-        const regexps = path.map((p) => pathToSource(p, keys, flags, options));
-        return Object.assign(new RegExp(regexps.join("|")), { keys });
+    const sources = [];
+    const flags = sensitive ? "" : "i";
+    const paths = Array.isArray(path) ? path : [path];
+    const items = paths.map((path) => path instanceof TokenData ? path : parse(path, options));
+    for (const { tokens } of items) {
+        for (const seq of flatten(tokens, 0, [])) {
+            const regexp = sequenceToRegExp(seq, delimiter, keys);
+            sources.push(regexp);
+        }
     }
-    const regexp = pathToSource(path, keys, flags, options);
-    return Object.assign(new RegExp(regexp), { keys });
+    let pattern = `^(?:${sources.join("|")})`;
+    if (trailing)
+        pattern += `(?:${escape(delimiter)}$)?`;
+    pattern += end ? "$" : `(?=${escape(delimiter)}|$)`;
+    const regexp = new RegExp(pattern, flags);
+    return { regexp, keys };
+}
+/**
+ * Generate a flat list of sequence tokens from the given tokens.
+ */
+function* flatten(tokens, index, init) {
+    if (index === tokens.length) {
+        return yield init;
+    }
+    const token = tokens[index];
+    if (token.type === "group") {
+        const fork = init.slice();
+        for (const seq of flatten(token.tokens, 0, fork)) {
+            yield* flatten(tokens, index + 1, seq);
+        }
+    }
+    else {
+        init.push(token);
+    }
+    yield* flatten(tokens, index + 1, init);
+}
+/**
+ * Transform a flat sequence of tokens into a regular expression.
+ */
+function sequenceToRegExp(tokens, delimiter, keys) {
+    let result = "";
+    let backtrack = "";
+    let isSafeSegmentParam = true;
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (token.type === "text") {
+            result += escape(token.value);
+            backtrack += token.value;
+            isSafeSegmentParam || (isSafeSegmentParam = token.value.includes(delimiter));
+            continue;
+        }
+        if (token.type === "param" || token.type === "wildcard") {
+            if (!isSafeSegmentParam && !backtrack) {
+                throw new TypeError(`Missing text after "${token.name}": ${DEBUG_URL}`);
+            }
+            if (token.type === "param") {
+                result += `(${negate(delimiter, isSafeSegmentParam ? "" : backtrack)}+)`;
+            }
+            else {
+                result += `([\\s\\S]+)`;
+            }
+            keys.push(token);
+            backtrack = "";
+            isSafeSegmentParam = false;
+            continue;
+        }
+    }
+    return result;
+}
+function negate(delimiter, backtrack) {
+    if (backtrack.length < 2) {
+        if (delimiter.length < 2)
+            return `[^${escape(delimiter + backtrack)}]`;
+        return `(?:(?!${escape(delimiter)})[^${escape(backtrack)}])`;
+    }
+    if (delimiter.length < 2) {
+        return `(?:(?!${escape(backtrack)})[^${escape(delimiter)}])`;
+    }
+    return `(?:(?!${escape(backtrack)}|${escape(delimiter)})[\\s\\S])`;
+}
+/**
+ * Stringify token data into a path string.
+ */
+function stringify(data) {
+    return data.tokens
+        .map(function stringifyToken(token, index, tokens) {
+        if (token.type === "text")
+            return escapeText(token.value);
+        if (token.type === "group") {
+            return `{${token.tokens.map(stringifyToken).join("")}}`;
+        }
+        const isSafe = isNameSafe(token.name) && isNextNameSafe(tokens[index + 1]);
+        const key = isSafe ? token.name : JSON.stringify(token.name);
+        if (token.type === "param")
+            return `:${key}`;
+        if (token.type === "wildcard")
+            return `*${key}`;
+        throw new TypeError(`Unexpected token: ${token}`);
+    })
+        .join("");
+}
+function isNameSafe(name) {
+    const [first, ...rest] = name;
+    if (!ID_START.test(first))
+        return false;
+    return rest.every((char) => ID_CONTINUE.test(char));
+}
+function isNextNameSafe(token) {
+    if ((token === null || token === void 0 ? void 0 : token.type) !== "text")
+        return true;
+    return !ID_CONTINUE.test(token.value[0]);
 }
 //# sourceMappingURL=index.js.map
 
@@ -100754,7 +100724,7 @@ exports.walkTokens = walkTokens;
 
 /***/ }),
 
-/***/ 63838:
+/***/ 85888:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -100828,7 +100798,7 @@ function getAPIDefinitionType(schema) {
 
 
 exports.isBuffer = isBuffer; exports.normalizeURL = normalizeURL; exports.getType = getType; exports.isOpenAPI = isOpenAPI; exports.isPostman = isPostman; exports.isSwagger = isSwagger; exports.stringToJSON = stringToJSON; exports.isAPIDefinition = isAPIDefinition; exports.getAPIDefinitionType = getAPIDefinitionType;
-//# sourceMappingURL=chunk-DBH3UAUF.cjs.map
+//# sourceMappingURL=chunk-K75HC34M.cjs.map
 
 /***/ }),
 
@@ -100844,7 +100814,7 @@ Object.defineProperty(exports, "__esModule", ({value: true})); function _interop
 
 
 
-var _chunkDBH3UAUFcjs = __nccwpck_require__(63838);
+var _chunkK75HC34Mcjs = __nccwpck_require__(85888);
 
 // src/index.ts
 var _fs = __nccwpck_require__(57147); var _fs2 = _interopRequireDefault(_fs);
@@ -100859,7 +100829,7 @@ var OASNormalize = class _OASNormalize {
       enablePaths: false,
       ...opts
     };
-    this.type = _chunkDBH3UAUFcjs.getType.call(void 0, this.file);
+    this.type = _chunkK75HC34Mcjs.getType.call(void 0, this.file);
     this.cache = {
       load: false,
       bundle: false,
@@ -100870,10 +100840,9 @@ var OASNormalize = class _OASNormalize {
    * @private
    */
   async load() {
-    if (this.cache.load)
-      return Promise.resolve(this.cache.load);
+    if (this.cache.load) return Promise.resolve(this.cache.load);
     const resolve = (obj) => {
-      const ret = _chunkDBH3UAUFcjs.stringToJSON.call(void 0, obj);
+      const ret = _chunkK75HC34Mcjs.stringToJSON.call(void 0, obj);
       this.cache.load = ret;
       return Promise.resolve(ret);
     };
@@ -100885,7 +100854,7 @@ var OASNormalize = class _OASNormalize {
       case "buffer":
         return resolve(this.file.toString());
       case "url":
-        const resp = await fetch(_chunkDBH3UAUFcjs.normalizeURL.call(void 0, this.file)).then((res) => res.text());
+        const resp = await fetch(_chunkK75HC34Mcjs.normalizeURL.call(void 0, this.file)).then((res) => res.text());
         return resolve(resp);
       case "path":
         if (!this.opts.enablePaths) {
@@ -100913,10 +100882,9 @@ var OASNormalize = class _OASNormalize {
    *
    */
   async bundle() {
-    if (this.cache.bundle)
-      return Promise.resolve(this.cache.bundle);
+    if (this.cache.bundle) return Promise.resolve(this.cache.bundle);
     return this.load().then((schema) => {
-      if (_chunkDBH3UAUFcjs.isPostman.call(void 0, schema)) {
+      if (_chunkK75HC34Mcjs.isPostman.call(void 0, schema)) {
         return _OASNormalize.convertPostmanToOpenAPI(schema);
       }
       return schema;
@@ -100930,10 +100898,9 @@ var OASNormalize = class _OASNormalize {
    *
    */
   async deref() {
-    if (this.cache.deref)
-      return Promise.resolve(this.cache.deref);
+    if (this.cache.deref) return Promise.resolve(this.cache.deref);
     return this.load().then((schema) => {
-      if (_chunkDBH3UAUFcjs.isPostman.call(void 0, schema)) {
+      if (_chunkK75HC34Mcjs.isPostman.call(void 0, schema)) {
         return _OASNormalize.convertPostmanToOpenAPI(schema);
       }
       return schema;
@@ -100954,14 +100921,14 @@ var OASNormalize = class _OASNormalize {
     }
     parserOptions.validate.colorizeErrors = this.opts.colorizeErrors;
     return this.load().then(async (schema) => {
-      if (!_chunkDBH3UAUFcjs.isPostman.call(void 0, schema)) {
+      if (!_chunkK75HC34Mcjs.isPostman.call(void 0, schema)) {
         return schema;
       }
       return _OASNormalize.convertPostmanToOpenAPI(schema);
     }).then(async (schema) => {
-      if (!_chunkDBH3UAUFcjs.isSwagger.call(void 0, schema) && !_chunkDBH3UAUFcjs.isOpenAPI.call(void 0, schema)) {
+      if (!_chunkK75HC34Mcjs.isSwagger.call(void 0, schema) && !_chunkK75HC34Mcjs.isOpenAPI.call(void 0, schema)) {
         return Promise.reject(new Error("The supplied API definition is unsupported."));
-      } else if (_chunkDBH3UAUFcjs.isSwagger.call(void 0, schema)) {
+      } else if (_chunkK75HC34Mcjs.isSwagger.call(void 0, schema)) {
         const baseVersion = parseInt(schema.swagger, 10);
         if (baseVersion === 1) {
           return Promise.reject(new Error("Swagger v1.2 is unsupported."));
@@ -100969,7 +100936,7 @@ var OASNormalize = class _OASNormalize {
       }
       const clonedSchema = JSON.parse(JSON.stringify(schema));
       return _openapiparser2.default.validate(clonedSchema, parserOptions).then(() => {
-        if (!convertToLatest || _chunkDBH3UAUFcjs.isOpenAPI.call(void 0, schema)) {
+        if (!convertToLatest || _chunkK75HC34Mcjs.isOpenAPI.call(void 0, schema)) {
           return schema;
         }
         return _swagger2openapi2.default.convertObj(schema, { anchors: true }).then((options) => options.openapi);
@@ -100982,7 +100949,7 @@ var OASNormalize = class _OASNormalize {
    */
   async version() {
     return this.load().then((schema) => {
-      switch (_chunkDBH3UAUFcjs.getAPIDefinitionType.call(void 0, schema)) {
+      switch (_chunkK75HC34Mcjs.getAPIDefinitionType.call(void 0, schema)) {
         case "openapi":
           return {
             specification: "openapi",
@@ -101022,7 +100989,783 @@ module.exports = exports.default;
 
 /***/ }),
 
-/***/ 93000:
+/***/ 6968:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+Object.defineProperty(exports, "__esModule", ({value: true})); function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; } function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
+
+
+var _chunk52VLPARLcjs = __nccwpck_require__(31447);
+
+
+
+var _chunkVIIXOUMHcjs = __nccwpck_require__(46764);
+
+
+var _chunkS5V43NLNcjs = __nccwpck_require__(90789);
+
+
+
+
+
+
+
+
+
+
+var _chunkYHO3AOX6cjs = __nccwpck_require__(12647);
+
+// src/index.ts
+var _jsonschemarefparser = __nccwpck_require__(98824); var _jsonschemarefparser2 = _interopRequireDefault(_jsonschemarefparser);
+var _pathtoregexp = __nccwpck_require__(14694);
+
+// src/lib/get-auth.ts
+function getKey(user, scheme) {
+  switch (scheme.type) {
+    case "oauth2":
+    case "apiKey":
+      return user[scheme._key] || user.apiKey || scheme["x-default"] || null;
+    case "http":
+      if (scheme.scheme === "basic") {
+        return user[scheme._key] || { user: user.user || null, pass: user.pass || null };
+      }
+      if (scheme.scheme === "bearer") {
+        return user[scheme._key] || user.apiKey || scheme["x-default"] || null;
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+function getByScheme(user, scheme = {}, selectedApp) {
+  if (_optionalChain([user, 'optionalAccess', _ => _.keys]) && user.keys.length) {
+    if (selectedApp) {
+      return getKey(
+        user.keys.find((key) => key.name === selectedApp),
+        scheme
+      );
+    }
+    return getKey(user.keys[0], scheme);
+  }
+  return getKey(user, scheme);
+}
+function getAuth(api, user, selectedApp) {
+  return Object.keys(_optionalChain([api, 'optionalAccess', _2 => _2.components, 'optionalAccess', _3 => _3.securitySchemes]) || {}).map((scheme) => {
+    return {
+      [scheme]: getByScheme(
+        user,
+        {
+          // This sucks but since we dereference we'll never have a `$ref` pointer here with a
+          // `ReferenceObject` type.
+          ...api.components.securitySchemes[scheme],
+          _key: scheme
+        },
+        selectedApp
+      )
+    };
+  }).reduce((prev, next) => Object.assign(prev, next), {});
+}
+
+// src/lib/get-user-variable.ts
+function getUserVariable(user, property, selectedApp) {
+  let key = user;
+  if ("keys" in user && Array.isArray(user.keys) && user.keys.length) {
+    if (selectedApp) {
+      key = user.keys.find((k) => k.name === selectedApp);
+    } else {
+      key = user.keys[0];
+    }
+  }
+  return key[property] || user[property] || null;
+}
+
+// src/index.ts
+var SERVER_VARIABLE_REGEX = /{([-_a-zA-Z0-9:.[\]]+)}/g;
+function ensureProtocol(url) {
+  if (url.match(/^\/\//)) {
+    return `https:${url}`;
+  }
+  if (!url.match(/\/\//)) {
+    return `https://${url}`;
+  }
+  return url;
+}
+function stripTrailingSlash(url) {
+  if (url[url.length - 1] === "/") {
+    return url.slice(0, -1);
+  }
+  return url;
+}
+function normalizedUrl(api, selected) {
+  const exampleDotCom = "https://example.com";
+  let url;
+  try {
+    url = api.servers[selected].url;
+    if (!url) throw new Error("no url");
+    url = stripTrailingSlash(url);
+    if (url.startsWith("/") && !url.startsWith("//")) {
+      const urlWithOrigin = new URL(exampleDotCom);
+      urlWithOrigin.pathname = url;
+      url = urlWithOrigin.href;
+    }
+  } catch (e) {
+    url = exampleDotCom;
+  }
+  return ensureProtocol(url);
+}
+function transformUrlIntoRegex(url) {
+  return stripTrailingSlash(url.replace(SERVER_VARIABLE_REGEX, "([-_a-zA-Z0-9:.[\\]]+)"));
+}
+function normalizePath(path) {
+  return path.replace(/({?){(.*?)}(}?)/g, (str, ...args) => {
+    return `:${args[1].replace("-", "")}`;
+  }).replace(/::/, "\\::").split("?")[0];
+}
+function generatePathMatches(paths, pathName, origin) {
+  const prunedPathName = pathName.split("?")[0];
+  return Object.keys(paths).map((path) => {
+    const cleanedPath = normalizePath(path);
+    let matchResult;
+    try {
+      const matchStatement = _pathtoregexp.match.call(void 0, cleanedPath, { decode: decodeURIComponent });
+      matchResult = matchStatement(prunedPathName);
+    } catch (err) {
+      return;
+    }
+    const slugs = {};
+    if (matchResult && Object.keys(matchResult.params).length) {
+      Object.keys(matchResult.params).forEach((param) => {
+        slugs[`:${param}`] = matchResult.params[param];
+      });
+    }
+    return {
+      url: {
+        origin,
+        path: cleanedPath.replace(/\\::/, "::"),
+        nonNormalizedPath: path,
+        slugs
+      },
+      operation: paths[path],
+      match: matchResult
+    };
+  }).filter(Boolean).filter((p) => p.match);
+}
+function filterPathMethods(pathMatches, targetMethod) {
+  const regExp = _pathtoregexp.pathToRegexp.call(void 0, targetMethod);
+  return pathMatches.map((p) => {
+    const captures = Object.keys(p.operation).filter((r) => regExp.regexp.exec(r));
+    if (captures.length) {
+      const method = captures[0];
+      p.url.method = method.toUpperCase();
+      return {
+        url: p.url,
+        operation: p.operation[method]
+      };
+    }
+    return false;
+  }).filter(Boolean);
+}
+function findTargetPath(pathMatches) {
+  let minCount = Object.keys(pathMatches[0].url.slugs).length;
+  let operation;
+  for (let m = 0; m < pathMatches.length; m += 1) {
+    const selection = pathMatches[m];
+    const paramCount = Object.keys(selection.url.slugs).length;
+    if (paramCount <= minCount) {
+      minCount = paramCount;
+      operation = selection;
+    }
+  }
+  return operation;
+}
+var Oas = class _Oas {
+  /**
+   * @param oas An OpenAPI definition.
+   * @param user The information about a user that we should use when pulling auth tokens from
+   *    security schemes.
+   */
+  constructor(oas, user) {
+    if (typeof oas === "string") {
+      oas = JSON.parse(oas);
+    }
+    this.api = oas;
+    this.user = user || {};
+    this.promises = [];
+    this.dereferencing = {
+      processing: false,
+      complete: false,
+      circularRefs: []
+    };
+  }
+  /**
+   * This will initialize a new instance of the `Oas` class. This method is useful if you're using
+   * Typescript and are attempting to supply an untyped JSON object into `Oas` as it will force-type
+   * that object to an `OASDocument` for you.
+   *
+   * @param oas An OpenAPI definition.
+   * @param user The information about a user that we should use when pulling auth tokens from
+   *    security schemes.
+   */
+  static init(oas, user) {
+    return new _Oas(oas, user);
+  }
+  /**
+   * Retrieve the OpenAPI version that this API definition is targeted for.
+   */
+  getVersion() {
+    if (this.api.openapi) {
+      return this.api.openapi;
+    }
+    throw new Error("Unable to recognize what specification version this API definition conforms to.");
+  }
+  /**
+   * Retrieve the current OpenAPI API Definition.
+   *
+   */
+  getDefinition() {
+    return this.api;
+  }
+  url(selected = 0, variables) {
+    const url = normalizedUrl(this.api, selected);
+    return this.replaceUrl(url, variables || this.defaultVariables(selected)).trim();
+  }
+  variables(selected = 0) {
+    let variables;
+    try {
+      variables = this.api.servers[selected].variables;
+      if (!variables) throw new Error("no variables");
+    } catch (e) {
+      variables = {};
+    }
+    return variables;
+  }
+  defaultVariables(selected = 0) {
+    const variables = this.variables(selected);
+    const defaults = {};
+    Object.keys(variables).forEach((key) => {
+      defaults[key] = getUserVariable(this.user, key) || variables[key].default || "";
+    });
+    return defaults;
+  }
+  splitUrl(selected = 0) {
+    const url = normalizedUrl(this.api, selected);
+    const variables = this.variables(selected);
+    return url.split(/({.+?})/).filter(Boolean).map((part, i) => {
+      const isVariable = part.match(/[{}]/);
+      const value = part.replace(/[{}]/g, "");
+      const key = `${value}-${i}`;
+      if (!isVariable) {
+        return {
+          type: "text",
+          value,
+          key
+        };
+      }
+      const variable = _optionalChain([variables, 'optionalAccess', _4 => _4[value]]);
+      return {
+        type: "variable",
+        value,
+        key,
+        description: _optionalChain([variable, 'optionalAccess', _5 => _5.description]),
+        enum: _optionalChain([variable, 'optionalAccess', _6 => _6.enum])
+      };
+    });
+  }
+  /**
+   * With a fully composed server URL, run through our list of known OAS servers and return back
+   * which server URL was selected along with any contained server variables split out.
+   *
+   * For example, if you have an OAS server URL of `https://{name}.example.com:{port}/{basePath}`,
+   * and pass in `https://buster.example.com:3000/pet` to this function, you'll get back the
+   * following:
+   *
+   *    { selected: 0, variables: { name: 'buster', port: 3000, basePath: 'pet' } }
+   *
+   * Re-supplying this data to `oas.url()` should return the same URL you passed into this method.
+   *
+   * @param baseUrl A given URL to extract server variables out of.
+   */
+  splitVariables(baseUrl) {
+    const matchedServer = (this.api.servers || []).map((server, i) => {
+      const rgx = transformUrlIntoRegex(server.url);
+      const found = new RegExp(rgx).exec(baseUrl);
+      if (!found) {
+        return false;
+      }
+      const variables = {};
+      Array.from(server.url.matchAll(SERVER_VARIABLE_REGEX)).forEach((variable, y) => {
+        variables[variable[1]] = found[y + 1];
+      });
+      return {
+        selected: i,
+        variables
+      };
+    }).filter(Boolean);
+    return matchedServer.length ? matchedServer[0] : false;
+  }
+  /**
+   * Replace templated variables with supplied data in a given URL.
+   *
+   * There are a couple ways that this will utilize variable data:
+   *
+   *  - Supplying a `variables` object. If this is supplied, this data will always take priority.
+   *    This incoming `variables` object can be two formats:
+   *    `{ variableName: { default: 'value' } }` and `{ variableName: 'value' }`. If the former is
+   *    present, that will take precedence over the latter.
+   *  - If the supplied `variables` object is empty or does not match the current template name,
+   *    we fallback to the data stored in `this.user` and attempt to match against that.
+   *    See `getUserVariable` for some more information on how this data is pulled from `this.user`.
+   *
+   * If no variables supplied match up with the template name, the template name will instead be
+   * used as the variable data.
+   *
+   * @param url A URL to swap variables into.
+   * @param variables An object containing variables to swap into the URL.
+   */
+  replaceUrl(url, variables = {}) {
+    return stripTrailingSlash(
+      url.replace(SERVER_VARIABLE_REGEX, (original, key) => {
+        if (key in variables) {
+          const data = variables[key];
+          if (typeof data === "object") {
+            if (!Array.isArray(data) && data !== null && "default" in data) {
+              return data.default;
+            }
+          } else {
+            return data;
+          }
+        }
+        const userVariable = getUserVariable(this.user, key);
+        if (userVariable) {
+          return userVariable;
+        }
+        return original;
+      })
+    );
+  }
+  /**
+   * Retrieve an Operation of Webhook class instance for a given path and method.
+   *
+   * @param path Path to lookup and retrieve.
+   * @param method HTTP Method to retrieve on the path.
+   */
+  operation(path, method, opts = {}) {
+    let operation = {
+      parameters: []
+    };
+    if (opts.isWebhook) {
+      const api = this.api;
+      if (_optionalChain([api, 'optionalAccess', _7 => _7.webhooks, 'access', _8 => _8[path], 'optionalAccess', _9 => _9[method]])) {
+        operation = api.webhooks[path][method];
+        return new (0, _chunk52VLPARLcjs.Webhook)(api, path, method, operation);
+      }
+    }
+    if (_optionalChain([this, 'optionalAccess', _10 => _10.api, 'optionalAccess', _11 => _11.paths, 'optionalAccess', _12 => _12[path], 'optionalAccess', _13 => _13[method]])) {
+      operation = this.api.paths[path][method];
+    }
+    return new (0, _chunk52VLPARLcjs.Operation)(this.api, path, method, operation);
+  }
+  findOperationMatches(url) {
+    const { origin, hostname } = new URL(url);
+    const originRegExp = new RegExp(origin, "i");
+    const { servers, paths } = this.api;
+    let pathName;
+    let targetServer;
+    let matchedServer;
+    if (!servers || !servers.length) {
+      matchedServer = {
+        url: "https://example.com"
+      };
+    } else {
+      matchedServer = servers.find((s) => originRegExp.exec(this.replaceUrl(s.url, s.variables || {})));
+      if (!matchedServer) {
+        const hostnameRegExp = new RegExp(hostname);
+        matchedServer = servers.find((s) => hostnameRegExp.exec(this.replaceUrl(s.url, s.variables || {})));
+      }
+    }
+    if (!matchedServer) {
+      const matchedServerAndPath = servers.map((server) => {
+        const rgx = transformUrlIntoRegex(server.url);
+        const found = new RegExp(rgx).exec(url);
+        if (!found) {
+          return void 0;
+        }
+        return {
+          matchedServer: server,
+          pathName: url.split(new RegExp(rgx)).slice(-1).pop()
+        };
+      }).filter(Boolean);
+      if (!matchedServerAndPath.length) {
+        return void 0;
+      }
+      pathName = matchedServerAndPath[0].pathName;
+      targetServer = {
+        ...matchedServerAndPath[0].matchedServer
+      };
+    } else {
+      targetServer = {
+        ...matchedServer,
+        url: this.replaceUrl(matchedServer.url, matchedServer.variables || {})
+      };
+      [, pathName] = url.split(new RegExp(targetServer.url, "i"));
+    }
+    if (pathName === void 0) return void 0;
+    if (pathName === "") pathName = "/";
+    const annotatedPaths = generatePathMatches(paths, pathName, targetServer.url);
+    if (!annotatedPaths.length) return void 0;
+    return annotatedPaths;
+  }
+  /**
+   * Discover an operation in an OAS from a fully-formed URL and HTTP method. Will return an object
+   * containing a `url` object and another one for `operation`. This differs from `getOperation()`
+   * in that it does not return an instance of the `Operation` class.
+   *
+   * @param url A full URL to look up.
+   * @param method The cooresponding HTTP method to look up.
+   */
+  findOperation(url, method) {
+    const annotatedPaths = this.findOperationMatches(url);
+    if (!annotatedPaths) {
+      return void 0;
+    }
+    const matches = filterPathMethods(annotatedPaths, method);
+    if (!matches.length) return void 0;
+    return findTargetPath(matches);
+  }
+  /**
+   * Discover an operation in an OAS from a fully-formed URL without an HTTP method. Will return an
+   * object containing a `url` object and another one for `operation`.
+   *
+   * @param url A full URL to look up.
+   */
+  findOperationWithoutMethod(url) {
+    const annotatedPaths = this.findOperationMatches(url);
+    if (!annotatedPaths) {
+      return void 0;
+    }
+    return findTargetPath(annotatedPaths);
+  }
+  /**
+   * Retrieve an operation in an OAS from a fully-formed URL and HTTP method. Differs from
+   * `findOperation` in that while this method will return an `Operation` instance,
+   * `findOperation()` does not.
+   *
+   * @param url A full URL to look up.
+   * @param method The cooresponding HTTP method to look up.
+   */
+  getOperation(url, method) {
+    const op = this.findOperation(url, method);
+    if (op === void 0) {
+      return void 0;
+    }
+    return this.operation(op.url.nonNormalizedPath, method);
+  }
+  /**
+   * Retrieve an operation in an OAS by an `operationId`.
+   *
+   * If an operation does not have an `operationId` one will be generated in place, using the
+   * default behavior of `Operation.getOperationId()`, and then asserted against your query.
+   *
+   * Note that because `operationId`s are unique that uniqueness does include casing so the ID
+   * you are looking for will be asserted as an exact match.
+   *
+   * @see {Operation.getOperationId()}
+   * @param id The `operationId` to look up.
+   */
+  getOperationById(id) {
+    let found;
+    Object.values(this.getPaths()).forEach((operations) => {
+      if (found) return;
+      found = Object.values(operations).find((operation) => operation.getOperationId() === id);
+    });
+    if (found) {
+      return found;
+    }
+    Object.entries(this.getWebhooks()).forEach(([, webhooks]) => {
+      if (found) return;
+      found = Object.values(webhooks).find((webhook) => webhook.getOperationId() === id);
+    });
+    return found;
+  }
+  /**
+   * With an object of user information, retrieve the appropriate API auth keys from the current
+   * OAS definition.
+   *
+   * @see {@link https://docs.readme.com/docs/passing-data-to-jwt}
+   * @param user User
+   * @param selectedApp The user app to retrieve an auth key for.
+   */
+  getAuth(user, selectedApp) {
+    if (!_optionalChain([this, 'access', _14 => _14.api, 'optionalAccess', _15 => _15.components, 'optionalAccess', _16 => _16.securitySchemes])) {
+      return {};
+    }
+    return getAuth(this.api, user, selectedApp);
+  }
+  /**
+   * Returns the `paths` object that exists in this API definition but with every `method` mapped
+   * to an instance of the `Operation` class.
+   *
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#oasObject}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#openapi-object}
+   */
+  getPaths() {
+    const paths = {};
+    Object.keys(this.api.paths ? this.api.paths : []).forEach((path) => {
+      if (path.startsWith("x-")) {
+        return;
+      }
+      paths[path] = {};
+      if ("$ref" in this.api.paths[path]) {
+        this.api.paths[path] = _chunkVIIXOUMHcjs.findSchemaDefinition.call(void 0, this.api.paths[path].$ref, this.api);
+      }
+      Object.keys(this.api.paths[path]).forEach((method) => {
+        if (!_chunkVIIXOUMHcjs.supportedMethods.has(method)) return;
+        paths[path][method] = this.operation(path, method);
+      });
+    });
+    return paths;
+  }
+  /**
+   * Returns the `webhooks` object that exists in this API definition but with every `method`
+   * mapped to an instance of the `Webhook` class.
+   *
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#oasObject}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#openapi-object}
+   */
+  getWebhooks() {
+    const webhooks = {};
+    const api = this.api;
+    Object.keys(api.webhooks ? api.webhooks : []).forEach((id) => {
+      webhooks[id] = {};
+      Object.keys(api.webhooks[id]).forEach((method) => {
+        webhooks[id][method] = this.operation(id, method, { isWebhook: true });
+      });
+    });
+    return webhooks;
+  }
+  /**
+   * Return an array of all tag names that exist on this API definition.
+   *
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#oasObject}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#openapi-object}
+   * @param setIfMissing If a tag is not present on an operation that operations path will be added
+   *    into the list of tags returned.
+   */
+  getTags(setIfMissing = false) {
+    const allTags = /* @__PURE__ */ new Set();
+    const oasTags = _optionalChain([this, 'access', _17 => _17.api, 'access', _18 => _18.tags, 'optionalAccess', _19 => _19.map, 'call', _20 => _20((tag) => {
+      return tag.name;
+    })]) || [];
+    const disableTagSorting = _chunkYHO3AOX6cjs.getExtension.call(void 0, "disable-tag-sorting", this.api);
+    Object.entries(this.getPaths()).forEach(([path, operations]) => {
+      Object.values(operations).forEach((operation) => {
+        const tags = operation.getTags();
+        if (setIfMissing && !tags.length) {
+          allTags.add(path);
+          return;
+        }
+        tags.forEach((tag) => {
+          allTags.add(tag.name);
+        });
+      });
+    });
+    Object.entries(this.getWebhooks()).forEach(([path, webhooks]) => {
+      Object.values(webhooks).forEach((webhook) => {
+        const tags = webhook.getTags();
+        if (setIfMissing && !tags.length) {
+          allTags.add(path);
+          return;
+        }
+        tags.forEach((tag) => {
+          allTags.add(tag.name);
+        });
+      });
+    });
+    const endpointTags = [];
+    const tagsArray = [];
+    if (disableTagSorting) {
+      return Array.from(allTags);
+    }
+    Array.from(allTags).forEach((tag) => {
+      if (oasTags.includes(tag)) {
+        tagsArray.push(tag);
+      } else {
+        endpointTags.push(tag);
+      }
+    });
+    let sortedTags = tagsArray.sort((a, b) => {
+      return oasTags.indexOf(a) - oasTags.indexOf(b);
+    });
+    sortedTags = sortedTags.concat(endpointTags);
+    return sortedTags;
+  }
+  /**
+   * Determine if a given a custom specification extension exists within the API definition.
+   *
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
+   * @param extension Specification extension to lookup.
+   */
+  hasExtension(extension) {
+    return _chunkYHO3AOX6cjs.hasRootExtension.call(void 0, extension, this.api);
+  }
+  /**
+   * Retrieve a custom specification extension off of the API definition.
+   *
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
+   * @param extension Specification extension to lookup.
+   */
+  getExtension(extension, operation) {
+    return _chunkYHO3AOX6cjs.getExtension.call(void 0, extension, this.api, operation);
+  }
+  /**
+   * Determine if a given OpenAPI custom extension is valid or not.
+   *
+   * @see {@link https://docs.readme.com/docs/openapi-extensions}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
+   * @param extension Specification extension to validate.
+   * @throws
+   */
+  validateExtension(extension) {
+    if (this.hasExtension("x-readme")) {
+      const data = this.getExtension("x-readme");
+      if (typeof data !== "object" || Array.isArray(data) || data === null) {
+        throw new TypeError('"x-readme" must be of type "Object"');
+      }
+      if (extension in data) {
+        if ([_chunkYHO3AOX6cjs.CODE_SAMPLES, _chunkYHO3AOX6cjs.HEADERS, _chunkYHO3AOX6cjs.PARAMETER_ORDERING, _chunkYHO3AOX6cjs.SAMPLES_LANGUAGES].includes(extension)) {
+          if (!Array.isArray(data[extension])) {
+            throw new TypeError(`"x-readme.${extension}" must be of type "Array"`);
+          }
+          if (extension === _chunkYHO3AOX6cjs.PARAMETER_ORDERING) {
+            _chunkYHO3AOX6cjs.validateParameterOrdering.call(void 0, data[extension], `x-readme.${extension}`);
+          }
+        } else if (extension === _chunkYHO3AOX6cjs.OAUTH_OPTIONS) {
+          if (typeof data[extension] !== "object") {
+            throw new TypeError(`"x-readme.${extension}" must be of type "Object"`);
+          }
+        } else if (typeof data[extension] !== "boolean") {
+          throw new TypeError(`"x-readme.${extension}" must be of type "Boolean"`);
+        }
+      }
+    }
+    if (this.hasExtension(`x-${extension}`)) {
+      const data = this.getExtension(`x-${extension}`);
+      if ([_chunkYHO3AOX6cjs.CODE_SAMPLES, _chunkYHO3AOX6cjs.HEADERS, _chunkYHO3AOX6cjs.PARAMETER_ORDERING, _chunkYHO3AOX6cjs.SAMPLES_LANGUAGES].includes(extension)) {
+        if (!Array.isArray(data)) {
+          throw new TypeError(`"x-${extension}" must be of type "Array"`);
+        }
+        if (extension === _chunkYHO3AOX6cjs.PARAMETER_ORDERING) {
+          _chunkYHO3AOX6cjs.validateParameterOrdering.call(void 0, data, `x-${extension}`);
+        }
+      } else if (extension === _chunkYHO3AOX6cjs.OAUTH_OPTIONS) {
+        if (typeof data !== "object") {
+          throw new TypeError(`"x-${extension}" must be of type "Object"`);
+        }
+      } else if (typeof data !== "boolean") {
+        throw new TypeError(`"x-${extension}" must be of type "Boolean"`);
+      }
+    }
+  }
+  /**
+   * Validate all of our custom or known OpenAPI extensions, throwing exceptions when necessary.
+   *
+   * @see {@link https://docs.readme.com/docs/openapi-extensions}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
+   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
+   */
+  validateExtensions() {
+    Object.keys(_chunkYHO3AOX6cjs.extensionDefaults).forEach((extension) => {
+      this.validateExtension(extension);
+    });
+  }
+  /**
+   * Retrieve any circular `$ref` pointers that maybe present within the API definition.
+   *
+   * This method requires that you first dereference the definition.
+   *
+   * @see Oas.dereference
+   */
+  getCircularReferences() {
+    if (!this.dereferencing.complete) {
+      throw new Error("#dereference() must be called first in order for this method to obtain circular references.");
+    }
+    return this.dereferencing.circularRefs;
+  }
+  /**
+   * Dereference the current OAS definition so it can be parsed free of worries of `$ref` schemas
+   * and circular structures.
+   *
+   */
+  async dereference(opts = { preserveRefAsJSONSchemaTitle: false }) {
+    if (this.dereferencing.complete) {
+      return new Promise((resolve) => {
+        resolve(true);
+      });
+    }
+    if (this.dereferencing.processing) {
+      return new Promise((resolve, reject) => {
+        this.promises.push({ resolve, reject });
+      });
+    }
+    this.dereferencing.processing = true;
+    const { api, promises } = this;
+    if (api && api.components && api.components.schemas && typeof api.components.schemas === "object") {
+      Object.keys(api.components.schemas).forEach((schemaName) => {
+        if (_chunkS5V43NLNcjs.isPrimitive.call(void 0, api.components.schemas[schemaName]) || Array.isArray(api.components.schemas[schemaName]) || api.components.schemas[schemaName] === null) {
+          return;
+        }
+        if (opts.preserveRefAsJSONSchemaTitle) {
+          api.components.schemas[schemaName].title = schemaName;
+        }
+        api.components.schemas[schemaName]["x-readme-ref-name"] = schemaName;
+      });
+    }
+    const parser = new (0, _jsonschemarefparser2.default)();
+    return parser.dereference(api || {}, {
+      resolve: {
+        // We shouldn't be resolving external pointers at this point so just ignore them.
+        external: false
+      },
+      dereference: {
+        // If circular `$refs` are ignored they'll remain in the OAS as `$ref: String`, otherwise
+        // `$ref‘ just won't exist. This allows us to do easy circular reference detection.
+        circular: "ignore"
+      }
+    }).then((dereferenced) => {
+      let circularRefs = [];
+      if (parser.$refs.circular) {
+        circularRefs = parser.$refs.circularRefs.map((pointer) => {
+          return `#${pointer.split("#")[1]}`;
+        });
+      }
+      this.api = dereferenced;
+      this.promises = promises;
+      this.dereferencing = {
+        processing: false,
+        complete: true,
+        circularRefs
+      };
+      if (opts.cb) {
+        opts.cb();
+      }
+    }).then(() => {
+      return this.promises.map((deferred) => deferred.resolve());
+    });
+  }
+};
+
+
+
+exports.Oas = Oas;
+//# sourceMappingURL=chunk-3BA3276B.cjs.map
+
+/***/ }),
+
+/***/ 31447:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -101038,7 +101781,7 @@ var _chunkVIIXOUMHcjs = __nccwpck_require__(46764);
 
 
 
-var _chunkOD3GKGB2cjs = __nccwpck_require__(4155);
+var _chunkS5V43NLNcjs = __nccwpck_require__(90789);
 
 
 var _chunkYHO3AOX6cjs = __nccwpck_require__(12647);
@@ -101076,7 +101819,7 @@ function usesPolymorphism(schema) {
   return false;
 }
 function objectify(thing) {
-  if (!_chunkOD3GKGB2cjs.isObject.call(void 0, thing)) {
+  if (!_chunkS5V43NLNcjs.isObject.call(void 0, thing)) {
     return {};
   }
   return thing;
@@ -101284,9 +102027,10 @@ function getMediaTypeExamples(mediaType, mediaTypeObject, opts = {}) {
     }
   }
   if (mediaTypeObject.schema) {
-    if (!_chunkOD3GKGB2cjs.matches_mimetype_default.xml(mediaType)) {
+    if (!_chunkS5V43NLNcjs.matches_mimetype_default.xml(mediaType)) {
       return [
         {
+          // eslint-disable-next-line try-catch-failsafe/json-parse
           value: samples_default(JSON.parse(JSON.stringify(mediaTypeObject.schema)), opts)
         }
       ];
@@ -101305,8 +102049,7 @@ function getResponseExamples(operation) {
     }
     const mediaTypes = {};
     (response.content ? Object.keys(response.content) : []).forEach((mediaType) => {
-      if (!mediaType)
-        return;
+      if (!mediaType) return;
       const mediaTypeObject = response.content[mediaType];
       const examples = getMediaTypeExamples(mediaType, mediaTypeObject, {
         includeReadOnly: true,
@@ -101342,8 +102085,7 @@ function getCallbackExamples(operation) {
           return Object.keys(callback[expression]).map((method) => {
             const pathItem = callback[expression];
             const example = getResponseExamples(pathItem[method]);
-            if (example.length === 0)
-              return false;
+            if (example.length === 0) return false;
             return {
               identifier,
               expression,
@@ -101475,7 +102217,7 @@ function getRequestBodyExamples(operation) {
 }
 
 // src/operation/lib/get-response-as-json-schema.ts
-var isJSON = _chunkOD3GKGB2cjs.matches_mimetype_default.json;
+var isJSON = _chunkS5V43NLNcjs.matches_mimetype_default.json;
 function buildHeadersSchema(response, opts) {
   const headers = response.headers;
   const headersSchema = {
@@ -101485,7 +102227,7 @@ function buildHeadersSchema(response, opts) {
   Object.keys(headers).forEach((key) => {
     if (headers[key] && headers[key].schema) {
       const header = headers[key];
-      headersSchema.properties[key] = _chunkOD3GKGB2cjs.toJSONSchema.call(void 0, header.schema, {
+      headersSchema.properties[key] = _chunkS5V43NLNcjs.toJSONSchema.call(void 0, header.schema, {
         addEnumsToDescriptions: true,
         transformer: opts.transformer
       });
@@ -101529,7 +102271,7 @@ function getResponseAsJSONSchema(operation, api, statusCode, opts) {
     }
     for (let i = 0; i < contentTypes.length; i++) {
       if (isJSON(contentTypes[i])) {
-        return _chunkOD3GKGB2cjs.toJSONSchema.call(void 0, _chunkOD3GKGB2cjs.cloneObject.call(void 0, content[contentTypes[i]].schema), {
+        return _chunkS5V43NLNcjs.toJSONSchema.call(void 0, _chunkS5V43NLNcjs.cloneObject.call(void 0, content[contentTypes[i]].schema), {
           addEnumsToDescriptions: true,
           refLogger,
           transformer: opts.transformer
@@ -101537,7 +102279,7 @@ function getResponseAsJSONSchema(operation, api, statusCode, opts) {
       }
     }
     const contentType = contentTypes.shift();
-    return _chunkOD3GKGB2cjs.toJSONSchema.call(void 0, _chunkOD3GKGB2cjs.cloneObject.call(void 0, content[contentType].schema), {
+    return _chunkS5V43NLNcjs.toJSONSchema.call(void 0, _chunkS5V43NLNcjs.cloneObject.call(void 0, content[contentType].schema), {
       addEnumsToDescriptions: true,
       refLogger,
       transformer: opts.transformer
@@ -101545,15 +102287,15 @@ function getResponseAsJSONSchema(operation, api, statusCode, opts) {
   }
   const foundSchema = getPreferredSchema(response.content);
   if (foundSchema) {
-    const schema = _chunkOD3GKGB2cjs.cloneObject.call(void 0, foundSchema);
+    const schema = _chunkS5V43NLNcjs.cloneObject.call(void 0, foundSchema);
     const schemaWrapper = {
       // If there's no `type` then the root schema is a circular `$ref` that we likely won't be
       // able to render so instead of generating a JSON Schema with an `undefined` type we should
       // default to `string` so there's at least *something* the end-user can interact with.
       type: foundSchema.type || "string",
-      schema: _chunkOD3GKGB2cjs.isPrimitive.call(void 0, schema) ? schema : {
+      schema: _chunkS5V43NLNcjs.isPrimitive.call(void 0, schema) ? schema : {
         ...schema,
-        $schema: _chunkOD3GKGB2cjs.getSchemaVersionString.call(void 0, schema, api)
+        $schema: _chunkS5V43NLNcjs.getSchemaVersionString.call(void 0, schema, api)
       },
       label: "Response body"
     };
@@ -101620,23 +102362,23 @@ var Operation = class {
       this.contentType = types[0];
     }
     types.forEach((t) => {
-      if (_chunkOD3GKGB2cjs.matches_mimetype_default.json(t)) {
+      if (_chunkS5V43NLNcjs.matches_mimetype_default.json(t)) {
         this.contentType = t;
       }
     });
     return this.contentType;
   }
   isFormUrlEncoded() {
-    return _chunkOD3GKGB2cjs.matches_mimetype_default.formUrlEncoded(this.getContentType());
+    return _chunkS5V43NLNcjs.matches_mimetype_default.formUrlEncoded(this.getContentType());
   }
   isMultipart() {
-    return _chunkOD3GKGB2cjs.matches_mimetype_default.multipart(this.getContentType());
+    return _chunkS5V43NLNcjs.matches_mimetype_default.multipart(this.getContentType());
   }
   isJson() {
-    return _chunkOD3GKGB2cjs.matches_mimetype_default.json(this.getContentType());
+    return _chunkS5V43NLNcjs.matches_mimetype_default.json(this.getContentType());
   }
   isXml() {
-    return _chunkOD3GKGB2cjs.matches_mimetype_default.xml(this.getContentType());
+    return _chunkS5V43NLNcjs.matches_mimetype_default.xml(this.getContentType());
   }
   /**
    * Checks if the current operation is a webhook or not.
@@ -101683,27 +102425,19 @@ var Operation = class {
         } catch (e) {
           return false;
         }
-        if (!security)
-          return false;
+        if (!security) return false;
         let type = null;
         if (security.type === "http") {
-          if (security.scheme === "basic")
-            type = "Basic";
-          else if (security.scheme === "bearer")
-            type = "Bearer";
-          else
-            type = security.type;
+          if (security.scheme === "basic") type = "Basic";
+          else if (security.scheme === "bearer") type = "Bearer";
+          else type = security.type;
         } else if (security.type === "oauth2") {
           type = "OAuth2";
         } else if (security.type === "apiKey") {
-          if (security.in === "query")
-            type = "Query";
-          else if (security.in === "header")
-            type = "Header";
-          else if (security.in === "cookie")
-            type = "Cookie";
-          else
-            type = security.type;
+          if (security.in === "query") type = "Query";
+          else if (security.in === "header") type = "Header";
+          else if (security.in === "cookie") type = "Cookie";
+          else type = security.type;
         } else {
           return false;
         }
@@ -101716,8 +102450,7 @@ var Operation = class {
           }
         };
       });
-      if (filterInvalid)
-        return keysWithTypes.filter((key) => key !== false);
+      if (filterInvalid) return keysWithTypes.filter((key) => key !== false);
       return keysWithTypes;
     });
   }
@@ -101730,17 +102463,13 @@ var Operation = class {
     const securitiesWithTypes = this.getSecurityWithTypes();
     return securitiesWithTypes.reduce(
       (prev, securities) => {
-        if (!securities)
-          return prev;
+        if (!securities) return prev;
         securities.forEach((security) => {
-          if (!security)
-            return;
-          if (!prev[security.type])
-            prev[security.type] = [];
+          if (!security) return;
+          if (!prev[security.type]) prev[security.type] = [];
           const exists = prev[security.type].some((sec) => sec._key === security.security._key);
           if (!exists) {
-            if (_optionalChain([security, 'access', _31 => _31.security, 'optionalAccess', _32 => _32._requirements]))
-              delete security.security._requirements;
+            if (_optionalChain([security, 'access', _31 => _31.security, 'optionalAccess', _32 => _32._requirements])) delete security.security._requirements;
             prev[security.type].push(security.security);
           }
         });
@@ -101770,8 +102499,7 @@ var Operation = class {
       this.headers.request = this.headers.request.concat(
         // Remove the reference object because we will have already dereferenced.
         this.schema.parameters.map((p) => {
-          if (p.in && p.in === "header")
-            return p.name;
+          if (p.in && p.in === "header") return p.name;
           return void 0;
         }).filter((p) => p)
       );
@@ -101793,10 +102521,8 @@ var Operation = class {
       if (Object.keys(this.schema.responses).some(
         (response) => !!this.schema.responses[response].content
       )) {
-        if (!this.headers.request.includes("Accept"))
-          this.headers.request.push("Accept");
-        if (!this.headers.response.includes("Content-Type"))
-          this.headers.response.push("Content-Type");
+        if (!this.headers.request.includes("Accept")) this.headers.request.push("Accept");
+        if (!this.headers.response.includes("Content-Type")) this.headers.response.push("Content-Type");
       }
     }
     return this.headers;
@@ -101919,7 +102645,7 @@ var Operation = class {
    *
    */
   getParametersAsJSONSchema(opts = {}) {
-    return _chunkOD3GKGB2cjs.getParametersAsJSONSchema.call(void 0, this, this.api, {
+    return _chunkS5V43NLNcjs.getParametersAsJSONSchema.call(void 0, this, this.api, {
       includeDiscriminatorMappingRefs: true,
       transformer: (s) => s,
       ...opts
@@ -102013,7 +102739,7 @@ var Operation = class {
     let availableMediaType;
     const mediaTypes = this.getRequestBodyMediaTypes();
     mediaTypes.forEach((mt) => {
-      if (!availableMediaType && _chunkOD3GKGB2cjs.matches_mimetype_default.json(mt)) {
+      if (!availableMediaType && _chunkS5V43NLNcjs.matches_mimetype_default.json(mt)) {
         availableMediaType = mt;
       }
     });
@@ -102038,7 +102764,8 @@ var Operation = class {
    *
    */
   getRequestBodyExamples() {
-    if (this.requestBodyExamples) {
+    const isRequestExampleValueDefined = typeof _optionalChain([this, 'access', _44 => _44.requestBodyExamples, 'optionalAccess', _45 => _45[0], 'optionalAccess', _46 => _46.examples, 'optionalAccess', _47 => _47[0], 'access', _48 => _48.value]) !== "undefined";
+    if (this.requestBodyExamples && isRequestExampleValueDefined) {
       return this.requestBodyExamples;
     }
     this.requestBodyExamples = getRequestBodyExamples(this.schema);
@@ -102090,11 +102817,9 @@ var Operation = class {
    * @param method HTTP Method on the callback to look for.
    */
   getCallback(identifier, expression, method) {
-    if (!this.schema.callbacks)
-      return false;
+    if (!this.schema.callbacks) return false;
     const callback = this.schema.callbacks[identifier] ? this.schema.callbacks[identifier][expression] : false;
-    if (!callback || !callback[method])
-      return false;
+    if (!callback || !callback[method]) return false;
     return new Callback(this.api, expression, method, callback[method], identifier, callback);
   }
   /**
@@ -102103,8 +102828,7 @@ var Operation = class {
    */
   getCallbacks() {
     const callbackOperations = [];
-    if (!this.hasCallbacks())
-      return false;
+    if (!this.hasCallbacks()) return false;
     Object.keys(this.schema.callbacks).forEach((callback) => {
       Object.keys(this.schema.callbacks[callback]).forEach((expression) => {
         const cb = this.schema.callbacks[callback];
@@ -102112,8 +102836,7 @@ var Operation = class {
           const exp = cb[expression];
           if (!_chunkG6ASGSM5cjs.isRef.call(void 0, exp)) {
             Object.keys(exp).forEach((method) => {
-              if (!_chunkVIIXOUMHcjs.supportedMethods.has(method))
-                return;
+              if (!_chunkVIIXOUMHcjs.supportedMethods.has(method)) return;
               callbackOperations.push(this.getCallback(callback, expression, method));
             });
           }
@@ -102153,7 +102876,7 @@ var Operation = class {
    * @deprecated Use `oas.getExtension(extension, operation)` instead.
    */
   getExtension(extension) {
-    return _optionalChain([this, 'access', _44 => _44.schema, 'optionalAccess', _45 => _45[extension]]);
+    return _optionalChain([this, 'access', _49 => _49.schema, 'optionalAccess', _50 => _50[extension]]);
   }
   /**
    * Returns an object with groups of all example definitions (body/header/query/path/response/etc.).
@@ -102167,8 +102890,7 @@ var Operation = class {
    * (i.e., a response example with the same key in the `examples` map).
    */
   getExampleGroups() {
-    if (this.exampleGroups)
-      return this.exampleGroups;
+    if (this.exampleGroups) return this.exampleGroups;
     const groups = getExampleGroups(this);
     this.exampleGroups = groups;
     return groups;
@@ -102190,7 +102912,7 @@ var Callback = class extends Operation {
     return this.identifier;
   }
   getSummary() {
-    if (_optionalChain([this, 'access', _46 => _46.schema, 'optionalAccess', _47 => _47.summary]) && typeof this.schema.summary === "string") {
+    if (_optionalChain([this, 'access', _51 => _51.schema, 'optionalAccess', _52 => _52.summary]) && typeof this.schema.summary === "string") {
       return this.schema.summary;
     } else if (this.parentSchema.summary && typeof this.parentSchema.summary === "string") {
       return this.parentSchema.summary;
@@ -102198,7 +102920,7 @@ var Callback = class extends Operation {
     return void 0;
   }
   getDescription() {
-    if (_optionalChain([this, 'access', _48 => _48.schema, 'optionalAccess', _49 => _49.description]) && typeof this.schema.description === "string") {
+    if (_optionalChain([this, 'access', _53 => _53.schema, 'optionalAccess', _54 => _54.description]) && typeof this.schema.description === "string") {
       return this.schema.description;
     } else if (this.parentSchema.description && typeof this.parentSchema.description === "string") {
       return this.parentSchema.description;
@@ -102206,7 +102928,7 @@ var Callback = class extends Operation {
     return void 0;
   }
   getParameters() {
-    let parameters = _optionalChain([this, 'access', _50 => _50.schema, 'optionalAccess', _51 => _51.parameters]) || [];
+    let parameters = _optionalChain([this, 'access', _55 => _55.schema, 'optionalAccess', _56 => _56.parameters]) || [];
     const commonParams = this.parentSchema.parameters || [];
     if (commonParams.length) {
       parameters = parameters.concat(dedupeCommonParameters(parameters, commonParams) || []);
@@ -102216,7 +102938,7 @@ var Callback = class extends Operation {
 };
 var Webhook = class extends Operation {
   getSummary() {
-    if (_optionalChain([this, 'access', _52 => _52.schema, 'optionalAccess', _53 => _53.summary]) && typeof this.schema.summary === "string") {
+    if (_optionalChain([this, 'access', _57 => _57.schema, 'optionalAccess', _58 => _58.summary]) && typeof this.schema.summary === "string") {
       return this.schema.summary;
     } else if (this.api.webhooks[this.path].summary && typeof this.api.webhooks[this.path].summary === "string") {
       return this.api.webhooks[this.path].summary;
@@ -102224,7 +102946,7 @@ var Webhook = class extends Operation {
     return void 0;
   }
   getDescription() {
-    if (_optionalChain([this, 'access', _54 => _54.schema, 'optionalAccess', _55 => _55.description]) && typeof this.schema.description === "string") {
+    if (_optionalChain([this, 'access', _59 => _59.schema, 'optionalAccess', _60 => _60.description]) && typeof this.schema.description === "string") {
       return this.schema.description;
     } else if (this.api.webhooks[this.path].description && typeof this.api.webhooks[this.path].description === "string") {
       return this.api.webhooks[this.path].description;
@@ -102250,7 +102972,7 @@ exports.Operation = Operation; exports.Callback = Callback; exports.Webhook = We
  * @license Apache-2.0
  * @see {@link https://github.com/swagger-api/swagger-ui/blob/master/src/core/plugins/samples/fn.js}
  */
-//# sourceMappingURL=chunk-3FVUMJJI.cjs.map
+//# sourceMappingURL=chunk-52VLPARL.cjs.map
 
 /***/ }),
 
@@ -102278,7 +103000,7 @@ exports.isRef = isRef; exports.isOAS31 = isOAS31; exports.isSchema = isSchema;
 
 /***/ }),
 
-/***/ 4155:
+/***/ 90789:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -102864,8 +103586,7 @@ function getParametersAsJSONSchema(operation, api, opts) {
     if (opts.retainDeprecatedProperties) {
       return null;
     }
-    if (!schema || !schema.properties)
-      return null;
+    if (!schema || !schema.properties) return null;
     const deprecatedBody = cloneObject(schema);
     const requiredParams = schema.required || [];
     const allDeprecatedProps = {};
@@ -102902,8 +103623,7 @@ function getParametersAsJSONSchema(operation, api, opts) {
   }
   function transformRequestBody() {
     const requestBody = operation.getRequestBody();
-    if (!requestBody || !Array.isArray(requestBody))
-      return null;
+    if (!requestBody || !Array.isArray(requestBody)) return null;
     const [mediaType, mediaTypeObject, description] = requestBody;
     const type = mediaType === "application/x-www-form-urlencoded" ? "formData" : "body";
     if (!mediaTypeObject.schema || !Object.keys(mediaTypeObject.schema).length) {
@@ -102985,8 +103705,7 @@ function getParametersAsJSONSchema(operation, api, opts) {
           } else if (current.examples) {
             currentSchema.examples = current.examples;
           }
-          if (current.deprecated)
-            currentSchema.deprecated = current.deprecated;
+          if (current.deprecated) currentSchema.deprecated = current.deprecated;
           const interimSchema = toJSONSchema(currentSchema, {
             currentLocation: `/${current.name}`,
             globalDefaults: opts.globalDefaults,
@@ -103023,8 +103742,7 @@ function getParametersAsJSONSchema(operation, api, opts) {
               } else if (current.examples) {
                 currentSchema.examples = current.examples;
               }
-              if (current.deprecated)
-                currentSchema.deprecated = current.deprecated;
+              if (current.deprecated) currentSchema.deprecated = current.deprecated;
               const interimSchema = toJSONSchema(currentSchema, {
                 currentLocation: `/${current.name}`,
                 globalDefaults: opts.globalDefaults,
@@ -103101,8 +103819,7 @@ function getParametersAsJSONSchema(operation, api, opts) {
     if (components && shouldIncludeComponents) {
       group.schema.components = components;
     }
-    if (!group.deprecatedProps)
-      delete group.deprecatedProps;
+    if (!group.deprecatedProps) delete group.deprecatedProps;
     return group;
   }).sort((a, b) => {
     return typeKeys.indexOf(a.type) - typeKeys.indexOf(b.type);
@@ -103119,7 +103836,7 @@ function getParametersAsJSONSchema(operation, api, opts) {
 
 
 exports.isObject = isObject; exports.isPrimitive = isPrimitive; exports.matches_mimetype_default = matches_mimetype_default; exports.cloneObject = cloneObject; exports.getSchemaVersionString = getSchemaVersionString; exports.toJSONSchema = toJSONSchema; exports.types = types; exports.getParametersAsJSONSchema = getParametersAsJSONSchema;
-//# sourceMappingURL=chunk-OD3GKGB2.cjs.map
+//# sourceMappingURL=chunk-S5V43NLN.cjs.map
 
 /***/ }),
 
@@ -103254,791 +103971,6 @@ exports.CODE_SAMPLES = CODE_SAMPLES; exports.EXPLORER_ENABLED = EXPLORER_ENABLED
 
 /***/ }),
 
-/***/ 68809:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-Object.defineProperty(exports, "__esModule", ({value: true})); function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; } function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
-
-
-var _chunk3FVUMJJIcjs = __nccwpck_require__(93000);
-
-
-
-var _chunkVIIXOUMHcjs = __nccwpck_require__(46764);
-
-
-var _chunkOD3GKGB2cjs = __nccwpck_require__(4155);
-
-
-
-
-
-
-
-
-
-
-var _chunkYHO3AOX6cjs = __nccwpck_require__(12647);
-
-// src/index.ts
-var _jsonschemarefparser = __nccwpck_require__(98824); var _jsonschemarefparser2 = _interopRequireDefault(_jsonschemarefparser);
-var _pathtoregexp = __nccwpck_require__(14694);
-
-// src/lib/get-auth.ts
-function getKey(user, scheme) {
-  switch (scheme.type) {
-    case "oauth2":
-    case "apiKey":
-      return user[scheme._key] || user.apiKey || scheme["x-default"] || null;
-    case "http":
-      if (scheme.scheme === "basic") {
-        return user[scheme._key] || { user: user.user || null, pass: user.pass || null };
-      }
-      if (scheme.scheme === "bearer") {
-        return user[scheme._key] || user.apiKey || scheme["x-default"] || null;
-      }
-      return null;
-    default:
-      return null;
-  }
-}
-function getByScheme(user, scheme = {}, selectedApp) {
-  if (_optionalChain([user, 'optionalAccess', _ => _.keys]) && user.keys.length) {
-    if (selectedApp) {
-      return getKey(
-        user.keys.find((key) => key.name === selectedApp),
-        scheme
-      );
-    }
-    return getKey(user.keys[0], scheme);
-  }
-  return getKey(user, scheme);
-}
-function getAuth(api, user, selectedApp) {
-  return Object.keys(_optionalChain([api, 'optionalAccess', _2 => _2.components, 'optionalAccess', _3 => _3.securitySchemes]) || {}).map((scheme) => {
-    return {
-      [scheme]: getByScheme(
-        user,
-        {
-          // This sucks but since we dereference we'll never have a `$ref` pointer here with a
-          // `ReferenceObject` type.
-          ...api.components.securitySchemes[scheme],
-          _key: scheme
-        },
-        selectedApp
-      )
-    };
-  }).reduce((prev, next) => Object.assign(prev, next), {});
-}
-
-// src/lib/get-user-variable.ts
-function getUserVariable(user, property, selectedApp) {
-  let key = user;
-  if ("keys" in user && Array.isArray(user.keys) && user.keys.length) {
-    if (selectedApp) {
-      key = user.keys.find((k) => k.name === selectedApp);
-    } else {
-      key = user.keys[0];
-    }
-  }
-  return key[property] || user[property] || null;
-}
-
-// src/index.ts
-var SERVER_VARIABLE_REGEX = /{([-_a-zA-Z0-9:.[\]]+)}/g;
-function ensureProtocol(url) {
-  if (url.match(/^\/\//)) {
-    return `https:${url}`;
-  }
-  if (!url.match(/\/\//)) {
-    return `https://${url}`;
-  }
-  return url;
-}
-function stripTrailingSlash(url) {
-  if (url[url.length - 1] === "/") {
-    return url.slice(0, -1);
-  }
-  return url;
-}
-function normalizedUrl(api, selected) {
-  const exampleDotCom = "https://example.com";
-  let url;
-  try {
-    url = api.servers[selected].url;
-    if (!url)
-      throw new Error("no url");
-    url = stripTrailingSlash(url);
-    if (url.startsWith("/") && !url.startsWith("//")) {
-      const urlWithOrigin = new URL(exampleDotCom);
-      urlWithOrigin.pathname = url;
-      url = urlWithOrigin.href;
-    }
-  } catch (e) {
-    url = exampleDotCom;
-  }
-  return ensureProtocol(url);
-}
-function transformUrlIntoRegex(url) {
-  return stripTrailingSlash(url.replace(SERVER_VARIABLE_REGEX, "([-_a-zA-Z0-9:.[\\]]+)"));
-}
-function normalizePath(path) {
-  return path.replace(/({?){(.*?)}(}?)/g, (str, ...args) => {
-    return `:${args[1].replace("-", "")}`;
-  }).replace(/::/, "\\::").split("?")[0];
-}
-function generatePathMatches(paths, pathName, origin) {
-  const prunedPathName = pathName.split("?")[0];
-  return Object.keys(paths).map((path) => {
-    const cleanedPath = normalizePath(path);
-    let matchResult;
-    try {
-      const matchStatement = _pathtoregexp.match.call(void 0, cleanedPath, { decode: decodeURIComponent });
-      matchResult = matchStatement(prunedPathName);
-    } catch (err) {
-      return;
-    }
-    const slugs = {};
-    if (matchResult && Object.keys(matchResult.params).length) {
-      Object.keys(matchResult.params).forEach((param) => {
-        slugs[`:${param}`] = matchResult.params[param];
-      });
-    }
-    return {
-      url: {
-        origin,
-        path: cleanedPath.replace(/\\::/, "::"),
-        nonNormalizedPath: path,
-        slugs
-      },
-      operation: paths[path],
-      match: matchResult
-    };
-  }).filter(Boolean).filter((p) => p.match);
-}
-function filterPathMethods(pathMatches, targetMethod) {
-  const regExp = _pathtoregexp.pathToRegexp.call(void 0, targetMethod);
-  return pathMatches.map((p) => {
-    const captures = Object.keys(p.operation).filter((r) => regExp.exec(r));
-    if (captures.length) {
-      const method = captures[0];
-      p.url.method = method.toUpperCase();
-      return {
-        url: p.url,
-        operation: p.operation[method]
-      };
-    }
-    return false;
-  }).filter(Boolean);
-}
-function findTargetPath(pathMatches) {
-  let minCount = Object.keys(pathMatches[0].url.slugs).length;
-  let operation;
-  for (let m = 0; m < pathMatches.length; m += 1) {
-    const selection = pathMatches[m];
-    const paramCount = Object.keys(selection.url.slugs).length;
-    if (paramCount <= minCount) {
-      minCount = paramCount;
-      operation = selection;
-    }
-  }
-  return operation;
-}
-var Oas = class _Oas {
-  /**
-   * @param oas An OpenAPI definition.
-   * @param user The information about a user that we should use when pulling auth tokens from
-   *    security schemes.
-   */
-  constructor(oas, user) {
-    if (typeof oas === "string") {
-      oas = JSON.parse(oas);
-    }
-    this.api = oas;
-    this.user = user || {};
-    this.promises = [];
-    this.dereferencing = {
-      processing: false,
-      complete: false,
-      circularRefs: []
-    };
-  }
-  /**
-   * This will initialize a new instance of the `Oas` class. This method is useful if you're using
-   * Typescript and are attempting to supply an untyped JSON object into `Oas` as it will force-type
-   * that object to an `OASDocument` for you.
-   *
-   * @param oas An OpenAPI definition.
-   * @param user The information about a user that we should use when pulling auth tokens from
-   *    security schemes.
-   */
-  static init(oas, user) {
-    return new _Oas(oas, user);
-  }
-  /**
-   * Retrieve the OpenAPI version that this API definition is targeted for.
-   */
-  getVersion() {
-    if (this.api.openapi) {
-      return this.api.openapi;
-    }
-    throw new Error("Unable to recognize what specification version this API definition conforms to.");
-  }
-  /**
-   * Retrieve the current OpenAPI API Definition.
-   *
-   */
-  getDefinition() {
-    return this.api;
-  }
-  url(selected = 0, variables) {
-    const url = normalizedUrl(this.api, selected);
-    return this.replaceUrl(url, variables || this.defaultVariables(selected)).trim();
-  }
-  variables(selected = 0) {
-    let variables;
-    try {
-      variables = this.api.servers[selected].variables;
-      if (!variables)
-        throw new Error("no variables");
-    } catch (e) {
-      variables = {};
-    }
-    return variables;
-  }
-  defaultVariables(selected = 0) {
-    const variables = this.variables(selected);
-    const defaults = {};
-    Object.keys(variables).forEach((key) => {
-      defaults[key] = getUserVariable(this.user, key) || variables[key].default || "";
-    });
-    return defaults;
-  }
-  splitUrl(selected = 0) {
-    const url = normalizedUrl(this.api, selected);
-    const variables = this.variables(selected);
-    return url.split(/({.+?})/).filter(Boolean).map((part, i) => {
-      const isVariable = part.match(/[{}]/);
-      const value = part.replace(/[{}]/g, "");
-      const key = `${value}-${i}`;
-      if (!isVariable) {
-        return {
-          type: "text",
-          value,
-          key
-        };
-      }
-      const variable = _optionalChain([variables, 'optionalAccess', _4 => _4[value]]);
-      return {
-        type: "variable",
-        value,
-        key,
-        description: _optionalChain([variable, 'optionalAccess', _5 => _5.description]),
-        enum: _optionalChain([variable, 'optionalAccess', _6 => _6.enum])
-      };
-    });
-  }
-  /**
-   * With a fully composed server URL, run through our list of known OAS servers and return back
-   * which server URL was selected along with any contained server variables split out.
-   *
-   * For example, if you have an OAS server URL of `https://{name}.example.com:{port}/{basePath}`,
-   * and pass in `https://buster.example.com:3000/pet` to this function, you'll get back the
-   * following:
-   *
-   *    { selected: 0, variables: { name: 'buster', port: 3000, basePath: 'pet' } }
-   *
-   * Re-supplying this data to `oas.url()` should return the same URL you passed into this method.
-   *
-   * @param baseUrl A given URL to extract server variables out of.
-   */
-  splitVariables(baseUrl) {
-    const matchedServer = (this.api.servers || []).map((server, i) => {
-      const rgx = transformUrlIntoRegex(server.url);
-      const found = new RegExp(rgx).exec(baseUrl);
-      if (!found) {
-        return false;
-      }
-      const variables = {};
-      Array.from(server.url.matchAll(SERVER_VARIABLE_REGEX)).forEach((variable, y) => {
-        variables[variable[1]] = found[y + 1];
-      });
-      return {
-        selected: i,
-        variables
-      };
-    }).filter(Boolean);
-    return matchedServer.length ? matchedServer[0] : false;
-  }
-  /**
-   * Replace templated variables with supplied data in a given URL.
-   *
-   * There are a couple ways that this will utilize variable data:
-   *
-   *  - Supplying a `variables` object. If this is supplied, this data will always take priority.
-   *    This incoming `variables` object can be two formats:
-   *    `{ variableName: { default: 'value' } }` and `{ variableName: 'value' }`. If the former is
-   *    present, that will take precedence over the latter.
-   *  - If the supplied `variables` object is empty or does not match the current template name,
-   *    we fallback to the data stored in `this.user` and attempt to match against that.
-   *    See `getUserVariable` for some more information on how this data is pulled from `this.user`.
-   *
-   * If no variables supplied match up with the template name, the template name will instead be
-   * used as the variable data.
-   *
-   * @param url A URL to swap variables into.
-   * @param variables An object containing variables to swap into the URL.
-   */
-  replaceUrl(url, variables = {}) {
-    return stripTrailingSlash(
-      url.replace(SERVER_VARIABLE_REGEX, (original, key) => {
-        if (key in variables) {
-          const data = variables[key];
-          if (typeof data === "object") {
-            if (!Array.isArray(data) && data !== null && "default" in data) {
-              return data.default;
-            }
-          } else {
-            return data;
-          }
-        }
-        const userVariable = getUserVariable(this.user, key);
-        if (userVariable) {
-          return userVariable;
-        }
-        return original;
-      })
-    );
-  }
-  /**
-   * Retrieve an Operation of Webhook class instance for a given path and method.
-   *
-   * @param path Path to lookup and retrieve.
-   * @param method HTTP Method to retrieve on the path.
-   */
-  operation(path, method, opts = {}) {
-    let operation = {
-      parameters: []
-    };
-    if (opts.isWebhook) {
-      const api = this.api;
-      if (_optionalChain([api, 'optionalAccess', _7 => _7.webhooks, 'access', _8 => _8[path], 'optionalAccess', _9 => _9[method]])) {
-        operation = api.webhooks[path][method];
-        return new (0, _chunk3FVUMJJIcjs.Webhook)(api, path, method, operation);
-      }
-    }
-    if (_optionalChain([this, 'optionalAccess', _10 => _10.api, 'optionalAccess', _11 => _11.paths, 'optionalAccess', _12 => _12[path], 'optionalAccess', _13 => _13[method]])) {
-      operation = this.api.paths[path][method];
-    }
-    return new (0, _chunk3FVUMJJIcjs.Operation)(this.api, path, method, operation);
-  }
-  findOperationMatches(url) {
-    const { origin, hostname } = new URL(url);
-    const originRegExp = new RegExp(origin, "i");
-    const { servers, paths } = this.api;
-    let pathName;
-    let targetServer;
-    let matchedServer;
-    if (!servers || !servers.length) {
-      matchedServer = {
-        url: "https://example.com"
-      };
-    } else {
-      matchedServer = servers.find((s) => originRegExp.exec(this.replaceUrl(s.url, s.variables || {})));
-      if (!matchedServer) {
-        const hostnameRegExp = new RegExp(hostname);
-        matchedServer = servers.find((s) => hostnameRegExp.exec(this.replaceUrl(s.url, s.variables || {})));
-      }
-    }
-    if (!matchedServer) {
-      const matchedServerAndPath = servers.map((server) => {
-        const rgx = transformUrlIntoRegex(server.url);
-        const found = new RegExp(rgx).exec(url);
-        if (!found) {
-          return void 0;
-        }
-        return {
-          matchedServer: server,
-          pathName: url.split(new RegExp(rgx)).slice(-1).pop()
-        };
-      }).filter(Boolean);
-      if (!matchedServerAndPath.length) {
-        return void 0;
-      }
-      pathName = matchedServerAndPath[0].pathName;
-      targetServer = {
-        ...matchedServerAndPath[0].matchedServer
-      };
-    } else {
-      targetServer = {
-        ...matchedServer,
-        url: this.replaceUrl(matchedServer.url, matchedServer.variables || {})
-      };
-      [, pathName] = url.split(new RegExp(targetServer.url, "i"));
-    }
-    if (pathName === void 0)
-      return void 0;
-    if (pathName === "")
-      pathName = "/";
-    const annotatedPaths = generatePathMatches(paths, pathName, targetServer.url);
-    if (!annotatedPaths.length)
-      return void 0;
-    return annotatedPaths;
-  }
-  /**
-   * Discover an operation in an OAS from a fully-formed URL and HTTP method. Will return an object
-   * containing a `url` object and another one for `operation`. This differs from `getOperation()`
-   * in that it does not return an instance of the `Operation` class.
-   *
-   * @param url A full URL to look up.
-   * @param method The cooresponding HTTP method to look up.
-   */
-  findOperation(url, method) {
-    const annotatedPaths = this.findOperationMatches(url);
-    if (!annotatedPaths) {
-      return void 0;
-    }
-    const matches = filterPathMethods(annotatedPaths, method);
-    if (!matches.length)
-      return void 0;
-    return findTargetPath(matches);
-  }
-  /**
-   * Discover an operation in an OAS from a fully-formed URL without an HTTP method. Will return an
-   * object containing a `url` object and another one for `operation`.
-   *
-   * @param url A full URL to look up.
-   */
-  findOperationWithoutMethod(url) {
-    const annotatedPaths = this.findOperationMatches(url);
-    if (!annotatedPaths) {
-      return void 0;
-    }
-    return findTargetPath(annotatedPaths);
-  }
-  /**
-   * Retrieve an operation in an OAS from a fully-formed URL and HTTP method. Differs from
-   * `findOperation` in that while this method will return an `Operation` instance,
-   * `findOperation()` does not.
-   *
-   * @param url A full URL to look up.
-   * @param method The cooresponding HTTP method to look up.
-   */
-  getOperation(url, method) {
-    const op = this.findOperation(url, method);
-    if (op === void 0) {
-      return void 0;
-    }
-    return this.operation(op.url.nonNormalizedPath, method);
-  }
-  /**
-   * Retrieve an operation in an OAS by an `operationId`.
-   *
-   * If an operation does not have an `operationId` one will be generated in place, using the
-   * default behavior of `Operation.getOperationId()`, and then asserted against your query.
-   *
-   * Note that because `operationId`s are unique that uniqueness does include casing so the ID
-   * you are looking for will be asserted as an exact match.
-   *
-   * @see {Operation.getOperationId()}
-   * @param id The `operationId` to look up.
-   */
-  getOperationById(id) {
-    let found;
-    Object.values(this.getPaths()).forEach((operations) => {
-      if (found)
-        return;
-      found = Object.values(operations).find((operation) => operation.getOperationId() === id);
-    });
-    if (found) {
-      return found;
-    }
-    Object.entries(this.getWebhooks()).forEach(([, webhooks]) => {
-      if (found)
-        return;
-      found = Object.values(webhooks).find((webhook) => webhook.getOperationId() === id);
-    });
-    return found;
-  }
-  /**
-   * With an object of user information, retrieve the appropriate API auth keys from the current
-   * OAS definition.
-   *
-   * @see {@link https://docs.readme.com/docs/passing-data-to-jwt}
-   * @param user User
-   * @param selectedApp The user app to retrieve an auth key for.
-   */
-  getAuth(user, selectedApp) {
-    if (!_optionalChain([this, 'access', _14 => _14.api, 'optionalAccess', _15 => _15.components, 'optionalAccess', _16 => _16.securitySchemes])) {
-      return {};
-    }
-    return getAuth(this.api, user, selectedApp);
-  }
-  /**
-   * Returns the `paths` object that exists in this API definition but with every `method` mapped
-   * to an instance of the `Operation` class.
-   *
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#oasObject}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#openapi-object}
-   */
-  getPaths() {
-    const paths = {};
-    Object.keys(this.api.paths ? this.api.paths : []).forEach((path) => {
-      if (path.startsWith("x-")) {
-        return;
-      }
-      paths[path] = {};
-      if ("$ref" in this.api.paths[path]) {
-        this.api.paths[path] = _chunkVIIXOUMHcjs.findSchemaDefinition.call(void 0, this.api.paths[path].$ref, this.api);
-      }
-      Object.keys(this.api.paths[path]).forEach((method) => {
-        if (!_chunkVIIXOUMHcjs.supportedMethods.has(method))
-          return;
-        paths[path][method] = this.operation(path, method);
-      });
-    });
-    return paths;
-  }
-  /**
-   * Returns the `webhooks` object that exists in this API definition but with every `method`
-   * mapped to an instance of the `Webhook` class.
-   *
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#oasObject}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#openapi-object}
-   */
-  getWebhooks() {
-    const webhooks = {};
-    const api = this.api;
-    Object.keys(api.webhooks ? api.webhooks : []).forEach((id) => {
-      webhooks[id] = {};
-      Object.keys(api.webhooks[id]).forEach((method) => {
-        webhooks[id][method] = this.operation(id, method, { isWebhook: true });
-      });
-    });
-    return webhooks;
-  }
-  /**
-   * Return an array of all tag names that exist on this API definition.
-   *
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.0.md#oasObject}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#openapi-object}
-   * @param setIfMissing If a tag is not present on an operation that operations path will be added
-   *    into the list of tags returned.
-   */
-  getTags(setIfMissing = false) {
-    const allTags = /* @__PURE__ */ new Set();
-    const oasTags = _optionalChain([this, 'access', _17 => _17.api, 'access', _18 => _18.tags, 'optionalAccess', _19 => _19.map, 'call', _20 => _20((tag) => {
-      return tag.name;
-    })]) || [];
-    const disableTagSorting = _chunkYHO3AOX6cjs.getExtension.call(void 0, "disable-tag-sorting", this.api);
-    Object.entries(this.getPaths()).forEach(([path, operations]) => {
-      Object.values(operations).forEach((operation) => {
-        const tags = operation.getTags();
-        if (setIfMissing && !tags.length) {
-          allTags.add(path);
-          return;
-        }
-        tags.forEach((tag) => {
-          allTags.add(tag.name);
-        });
-      });
-    });
-    Object.entries(this.getWebhooks()).forEach(([path, webhooks]) => {
-      Object.values(webhooks).forEach((webhook) => {
-        const tags = webhook.getTags();
-        if (setIfMissing && !tags.length) {
-          allTags.add(path);
-          return;
-        }
-        tags.forEach((tag) => {
-          allTags.add(tag.name);
-        });
-      });
-    });
-    const endpointTags = [];
-    const tagsArray = [];
-    if (disableTagSorting) {
-      return Array.from(allTags);
-    }
-    Array.from(allTags).forEach((tag) => {
-      if (oasTags.includes(tag)) {
-        tagsArray.push(tag);
-      } else {
-        endpointTags.push(tag);
-      }
-    });
-    let sortedTags = tagsArray.sort((a, b) => {
-      return oasTags.indexOf(a) - oasTags.indexOf(b);
-    });
-    sortedTags = sortedTags.concat(endpointTags);
-    return sortedTags;
-  }
-  /**
-   * Determine if a given a custom specification extension exists within the API definition.
-   *
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
-   * @param extension Specification extension to lookup.
-   */
-  hasExtension(extension) {
-    return _chunkYHO3AOX6cjs.hasRootExtension.call(void 0, extension, this.api);
-  }
-  /**
-   * Retrieve a custom specification extension off of the API definition.
-   *
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
-   * @param extension Specification extension to lookup.
-   */
-  getExtension(extension, operation) {
-    return _chunkYHO3AOX6cjs.getExtension.call(void 0, extension, this.api, operation);
-  }
-  /**
-   * Determine if a given OpenAPI custom extension is valid or not.
-   *
-   * @see {@link https://docs.readme.com/docs/openapi-extensions}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
-   * @param extension Specification extension to validate.
-   * @throws
-   */
-  validateExtension(extension) {
-    if (this.hasExtension("x-readme")) {
-      const data = this.getExtension("x-readme");
-      if (typeof data !== "object" || Array.isArray(data) || data === null) {
-        throw new TypeError('"x-readme" must be of type "Object"');
-      }
-      if (extension in data) {
-        if ([_chunkYHO3AOX6cjs.CODE_SAMPLES, _chunkYHO3AOX6cjs.HEADERS, _chunkYHO3AOX6cjs.PARAMETER_ORDERING, _chunkYHO3AOX6cjs.SAMPLES_LANGUAGES].includes(extension)) {
-          if (!Array.isArray(data[extension])) {
-            throw new TypeError(`"x-readme.${extension}" must be of type "Array"`);
-          }
-          if (extension === _chunkYHO3AOX6cjs.PARAMETER_ORDERING) {
-            _chunkYHO3AOX6cjs.validateParameterOrdering.call(void 0, data[extension], `x-readme.${extension}`);
-          }
-        } else if (extension === _chunkYHO3AOX6cjs.OAUTH_OPTIONS) {
-          if (typeof data[extension] !== "object") {
-            throw new TypeError(`"x-readme.${extension}" must be of type "Object"`);
-          }
-        } else if (typeof data[extension] !== "boolean") {
-          throw new TypeError(`"x-readme.${extension}" must be of type "Boolean"`);
-        }
-      }
-    }
-    if (this.hasExtension(`x-${extension}`)) {
-      const data = this.getExtension(`x-${extension}`);
-      if ([_chunkYHO3AOX6cjs.CODE_SAMPLES, _chunkYHO3AOX6cjs.HEADERS, _chunkYHO3AOX6cjs.PARAMETER_ORDERING, _chunkYHO3AOX6cjs.SAMPLES_LANGUAGES].includes(extension)) {
-        if (!Array.isArray(data)) {
-          throw new TypeError(`"x-${extension}" must be of type "Array"`);
-        }
-        if (extension === _chunkYHO3AOX6cjs.PARAMETER_ORDERING) {
-          _chunkYHO3AOX6cjs.validateParameterOrdering.call(void 0, data, `x-${extension}`);
-        }
-      } else if (extension === _chunkYHO3AOX6cjs.OAUTH_OPTIONS) {
-        if (typeof data !== "object") {
-          throw new TypeError(`"x-${extension}" must be of type "Object"`);
-        }
-      } else if (typeof data !== "boolean") {
-        throw new TypeError(`"x-${extension}" must be of type "Boolean"`);
-      }
-    }
-  }
-  /**
-   * Validate all of our custom or known OpenAPI extensions, throwing exceptions when necessary.
-   *
-   * @see {@link https://docs.readme.com/docs/openapi-extensions}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#specificationExtensions}
-   * @see {@link https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#specificationExtensions}
-   */
-  validateExtensions() {
-    Object.keys(_chunkYHO3AOX6cjs.extensionDefaults).forEach((extension) => {
-      this.validateExtension(extension);
-    });
-  }
-  /**
-   * Retrieve any circular `$ref` pointers that maybe present within the API definition.
-   *
-   * This method requires that you first dereference the definition.
-   *
-   * @see Oas.dereference
-   */
-  getCircularReferences() {
-    if (!this.dereferencing.complete) {
-      throw new Error("#dereference() must be called first in order for this method to obtain circular references.");
-    }
-    return this.dereferencing.circularRefs;
-  }
-  /**
-   * Dereference the current OAS definition so it can be parsed free of worries of `$ref` schemas
-   * and circular structures.
-   *
-   */
-  async dereference(opts = { preserveRefAsJSONSchemaTitle: false }) {
-    if (this.dereferencing.complete) {
-      return new Promise((resolve) => {
-        resolve(true);
-      });
-    }
-    if (this.dereferencing.processing) {
-      return new Promise((resolve, reject) => {
-        this.promises.push({ resolve, reject });
-      });
-    }
-    this.dereferencing.processing = true;
-    const { api, promises } = this;
-    if (api && api.components && api.components.schemas && typeof api.components.schemas === "object") {
-      Object.keys(api.components.schemas).forEach((schemaName) => {
-        if (_chunkOD3GKGB2cjs.isPrimitive.call(void 0, api.components.schemas[schemaName]) || Array.isArray(api.components.schemas[schemaName]) || api.components.schemas[schemaName] === null) {
-          return;
-        }
-        if (opts.preserveRefAsJSONSchemaTitle) {
-          api.components.schemas[schemaName].title = schemaName;
-        }
-        api.components.schemas[schemaName]["x-readme-ref-name"] = schemaName;
-      });
-    }
-    const parser = new (0, _jsonschemarefparser2.default)();
-    return parser.dereference(api || {}, {
-      resolve: {
-        // We shouldn't be resolving external pointers at this point so just ignore them.
-        external: false
-      },
-      dereference: {
-        // If circular `$refs` are ignored they'll remain in the OAS as `$ref: String`, otherwise
-        // `$ref‘ just won't exist. This allows us to do easy circular reference detection.
-        circular: "ignore"
-      }
-    }).then((dereferenced) => {
-      let circularRefs = [];
-      if (parser.$refs.circular) {
-        circularRefs = parser.$refs.circularRefs.map((pointer) => {
-          return `#${pointer.split("#")[1]}`;
-        });
-      }
-      this.api = dereferenced;
-      this.promises = promises;
-      this.dereferencing = {
-        processing: false,
-        complete: true,
-        circularRefs
-      };
-      if (opts.cb) {
-        opts.cb();
-      }
-    }).then(() => {
-      return this.promises.map((deferred) => deferred.resolve());
-    });
-  }
-};
-
-
-
-exports.Oas = Oas;
-//# sourceMappingURL=chunk-YX5TCZYW.cjs.map
-
-/***/ }),
-
 /***/ 25414:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -104085,15 +104017,15 @@ exports.CODE_SAMPLES = _chunkYHO3AOX6cjs.CODE_SAMPLES; exports.DISABLE_TAG_SORTI
 "use strict";
 Object.defineProperty(exports, "__esModule", ({value: true}));
 
-var _chunkYX5TCZYWcjs = __nccwpck_require__(68809);
-__nccwpck_require__(93000);
+var _chunk3BA3276Bcjs = __nccwpck_require__(6968);
+__nccwpck_require__(31447);
 __nccwpck_require__(46764);
-__nccwpck_require__(4155);
+__nccwpck_require__(90789);
 __nccwpck_require__(12647);
 __nccwpck_require__(62272);
 
 
-exports["default"] = _chunkYX5TCZYWcjs.Oas;
+exports["default"] = _chunk3BA3276Bcjs.Oas;
 
 module.exports = exports.default;
 //# sourceMappingURL=index.cjs.map
@@ -104108,16 +104040,16 @@ Object.defineProperty(exports, "__esModule", ({value: true}));
 
 
 
-var _chunk3FVUMJJIcjs = __nccwpck_require__(93000);
+var _chunk52VLPARLcjs = __nccwpck_require__(31447);
 __nccwpck_require__(46764);
-__nccwpck_require__(4155);
+__nccwpck_require__(90789);
 __nccwpck_require__(12647);
 __nccwpck_require__(62272);
 
 
 
 
-exports.Callback = _chunk3FVUMJJIcjs.Callback; exports.Operation = _chunk3FVUMJJIcjs.Operation; exports.Webhook = _chunk3FVUMJJIcjs.Webhook;
+exports.Callback = _chunk52VLPARLcjs.Callback; exports.Operation = _chunk52VLPARLcjs.Operation; exports.Webhook = _chunk52VLPARLcjs.Webhook;
 //# sourceMappingURL=index.cjs.map
 
 /***/ }),
@@ -104151,7 +104083,7 @@ var _chunkVIIXOUMHcjs = __nccwpck_require__(46764);
 
 
 
-var _chunkOD3GKGB2cjs = __nccwpck_require__(4155);
+var _chunkS5V43NLNcjs = __nccwpck_require__(90789);
 __nccwpck_require__(12647);
 __nccwpck_require__(62272);
 
@@ -104159,7 +104091,7 @@ __nccwpck_require__(62272);
 
 
 
-exports.findSchemaDefinition = _chunkVIIXOUMHcjs.findSchemaDefinition; exports.jsonSchemaTypes = _chunkOD3GKGB2cjs.types; exports.matchesMimeType = _chunkOD3GKGB2cjs.matches_mimetype_default; exports.supportedMethods = _chunkVIIXOUMHcjs.supportedMethods;
+exports.findSchemaDefinition = _chunkVIIXOUMHcjs.findSchemaDefinition; exports.jsonSchemaTypes = _chunkS5V43NLNcjs.types; exports.matchesMimeType = _chunkS5V43NLNcjs.matches_mimetype_default; exports.supportedMethods = _chunkVIIXOUMHcjs.supportedMethods;
 //# sourceMappingURL=utils.cjs.map
 
 /***/ }),
