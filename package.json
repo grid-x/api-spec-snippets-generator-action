@@ -68,7 +68,7 @@
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@readme/oas-to-snippet": "^25.2.18",
+    "@readme/oas-to-snippet": "^26.0.2",
     "oas": "^25.0.3",
     "oas-normalize": "^11.1.3"
   },
