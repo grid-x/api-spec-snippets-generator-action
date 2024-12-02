@@ -1,4 +1,5 @@
-import './sourcemap-register.cjs';/******/ var __webpack_modules__ = ({
+import './sourcemap-register.cjs';import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
+/******/ var __webpack_modules__ = ({
 
 /***/ 44914:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
@@ -34115,7 +34116,7 @@ module.exports = merger
 
 (function (factory) {
     if ( true && typeof module.exports === "object") {
-        var v = factory(require, exports);
+        var v = factory(__WEBPACK_EXTERNAL_createRequire(import.meta.url), exports);
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
@@ -34323,7 +34324,7 @@ module.exports = merger
 
 (function (factory) {
     if ( true && typeof module.exports === "object") {
-        var v = factory(require, exports);
+        var v = factory(__WEBPACK_EXTERNAL_createRequire(import.meta.url), exports);
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
@@ -34595,7 +34596,7 @@ module.exports = merger
 
 (function (factory) {
     if ( true && typeof module.exports === "object") {
-        var v = factory(require, exports);
+        var v = factory(__WEBPACK_EXTERNAL_createRequire(import.meta.url), exports);
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
@@ -35257,7 +35258,7 @@ module.exports = merger
 
 (function (factory) {
     if ( true && typeof module.exports === "object") {
-        var v = factory(require, exports);
+        var v = factory(__WEBPACK_EXTERNAL_createRequire(import.meta.url), exports);
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
@@ -35720,7 +35721,7 @@ module.exports = merger
 
 (function (factory) {
     if ( true && typeof module.exports === "object") {
-        var v = factory(require, exports);
+        var v = factory(__WEBPACK_EXTERNAL_createRequire(import.meta.url), exports);
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
@@ -75813,217 +75814,217 @@ module.exports = eval("require")("encoding");
 /***/ 42613:
 /***/ ((module) => {
 
-module.exports = require("assert");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("assert");
 
 /***/ }),
 
 /***/ 90290:
 /***/ ((module) => {
 
-module.exports = require("async_hooks");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("async_hooks");
 
 /***/ }),
 
 /***/ 20181:
 /***/ ((module) => {
 
-module.exports = require("buffer");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("buffer");
 
 /***/ }),
 
 /***/ 35317:
 /***/ ((module) => {
 
-module.exports = require("child_process");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("child_process");
 
 /***/ }),
 
 /***/ 64236:
 /***/ ((module) => {
 
-module.exports = require("console");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("console");
 
 /***/ }),
 
 /***/ 76982:
 /***/ ((module) => {
 
-module.exports = require("crypto");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("crypto");
 
 /***/ }),
 
 /***/ 31637:
 /***/ ((module) => {
 
-module.exports = require("diagnostics_channel");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("diagnostics_channel");
 
 /***/ }),
 
 /***/ 24434:
 /***/ ((module) => {
 
-module.exports = require("events");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("events");
 
 /***/ }),
 
 /***/ 79896:
 /***/ ((module) => {
 
-module.exports = require("fs");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("fs");
 
 /***/ }),
 
 /***/ 58611:
 /***/ ((module) => {
 
-module.exports = require("http");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("http");
 
 /***/ }),
 
 /***/ 85675:
 /***/ ((module) => {
 
-module.exports = require("http2");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("http2");
 
 /***/ }),
 
 /***/ 65692:
 /***/ ((module) => {
 
-module.exports = require("https");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("https");
 
 /***/ }),
 
 /***/ 69278:
 /***/ ((module) => {
 
-module.exports = require("net");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("net");
 
 /***/ }),
 
 /***/ 78474:
 /***/ ((module) => {
 
-module.exports = require("node:events");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:events");
 
 /***/ }),
 
 /***/ 57075:
 /***/ ((module) => {
 
-module.exports = require("node:stream");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:stream");
 
 /***/ }),
 
 /***/ 57975:
 /***/ ((module) => {
 
-module.exports = require("node:util");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:util");
 
 /***/ }),
 
 /***/ 70857:
 /***/ ((module) => {
 
-module.exports = require("os");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("os");
 
 /***/ }),
 
 /***/ 16928:
 /***/ ((module) => {
 
-module.exports = require("path");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("path");
 
 /***/ }),
 
 /***/ 82987:
 /***/ ((module) => {
 
-module.exports = require("perf_hooks");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("perf_hooks");
 
 /***/ }),
 
 /***/ 83480:
 /***/ ((module) => {
 
-module.exports = require("querystring");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("querystring");
 
 /***/ }),
 
 /***/ 2203:
 /***/ ((module) => {
 
-module.exports = require("stream");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("stream");
 
 /***/ }),
 
 /***/ 63774:
 /***/ ((module) => {
 
-module.exports = require("stream/web");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("stream/web");
 
 /***/ }),
 
 /***/ 13193:
 /***/ ((module) => {
 
-module.exports = require("string_decoder");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("string_decoder");
 
 /***/ }),
 
 /***/ 53557:
 /***/ ((module) => {
 
-module.exports = require("timers");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("timers");
 
 /***/ }),
 
 /***/ 64756:
 /***/ ((module) => {
 
-module.exports = require("tls");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("tls");
 
 /***/ }),
 
 /***/ 52018:
 /***/ ((module) => {
 
-module.exports = require("tty");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("tty");
 
 /***/ }),
 
 /***/ 87016:
 /***/ ((module) => {
 
-module.exports = require("url");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("url");
 
 /***/ }),
 
 /***/ 39023:
 /***/ ((module) => {
 
-module.exports = require("util");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("util");
 
 /***/ }),
 
 /***/ 98253:
 /***/ ((module) => {
 
-module.exports = require("util/types");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("util/types");
 
 /***/ }),
 
 /***/ 28167:
 /***/ ((module) => {
 
-module.exports = require("worker_threads");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("worker_threads");
 
 /***/ }),
 
 /***/ 43106:
 /***/ ((module) => {
 
-module.exports = require("zlib");
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("zlib");
 
 /***/ }),
 
@@ -92682,7 +92683,7 @@ function getAPIDefinitionType(schema) {
 
 //# sourceMappingURL=chunk-XOS5M44Y.js.map
 ;// CONCATENATED MODULE: external "node:fs"
-const external_node_fs_namespaceObject = require("node:fs");
+const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
 // EXTERNAL MODULE: ./node_modules/@readme/openapi-parser/lib/index.js
 var lib = __nccwpck_require__(38219);
 // EXTERNAL MODULE: ./node_modules/@readme/postman-to-openapi/src/index.js
@@ -95797,7 +95798,7 @@ var Oas = class _Oas {
 
 //# sourceMappingURL=chunk-GMSH2DQK.js.map
 ;// CONCATENATED MODULE: external "node:fs/promises"
-const promises_namespaceObject = require("node:fs/promises");
+const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs/promises");
 ;// CONCATENATED MODULE: ./node_modules/@readme/httpsnippet/dist/chunk-Y7NI4MMY.js
 // src/helpers/code-builder.ts
 var DEFAULT_INDENTATION_CHARACTER = "";
@@ -95864,12 +95865,12 @@ var CodeBuilder = class {
 //# sourceMappingURL=chunk-Y7NI4MMY.js.map
 // EXTERNAL MODULE: ./node_modules/stringify-object/index.js
 var stringify_object = __nccwpck_require__(27835);
-;// CONCATENATED MODULE: ./node_modules/@readme/httpsnippet/dist/chunk-532RKFLR.js
+;// CONCATENATED MODULE: ./node_modules/@readme/httpsnippet/dist/chunk-452Q5GGQ.js
 
 
 
 // src/helpers/escape.ts
-function chunk_532RKFLR_escapeString(rawValue, options = {}) {
+function chunk_452Q5GGQ_escapeString(rawValue, options = {}) {
   const { delimiter = '"', escapeChar = "\\", escapeNewlines = true } = options;
   const stringValue = rawValue.toString();
   return [...stringValue].map((c2) => {
@@ -95899,8 +95900,8 @@ function chunk_532RKFLR_escapeString(rawValue, options = {}) {
     return c2;
   }).join("");
 }
-var escapeForSingleQuotes = (value) => chunk_532RKFLR_escapeString(value, { delimiter: "'" });
-var escapeForDoubleQuotes = (value) => chunk_532RKFLR_escapeString(value, { delimiter: '"' });
+var escapeForSingleQuotes = (value) => chunk_452Q5GGQ_escapeString(value, { delimiter: "'" });
+var escapeForDoubleQuotes = (value) => chunk_452Q5GGQ_escapeString(value, { delimiter: '"' });
 
 // src/targets/c/libcurl/client.ts
 var libcurl = {
@@ -96378,7 +96379,7 @@ var csharp = {
 };
 
 // src/targets/go/native/client.ts
-var chunk_532RKFLR_native = {
+var chunk_452Q5GGQ_native = {
   info: {
     key: "native",
     title: "NewRequest",
@@ -96476,7 +96477,7 @@ var go = {
     cli: "go"
   },
   clientsById: {
-    native: chunk_532RKFLR_native
+    native: chunk_452Q5GGQ_native
   }
 };
 
@@ -96769,16 +96770,12 @@ var axios = {
     blank();
     push("axios");
     push(".request(options)", 1);
-    push(".then(function (response) {", 1);
-    push("console.log(response.data);", 2);
-    push("})", 1);
-    push(".catch(function (error) {", 1);
-    push("console.error(error);", 2);
-    push("});", 1);
+    push(".then(res => console.log(res.data))", 1);
+    push(".catch(err => console.error(err));", 1);
     return join();
   }
 };
-var chunk_532RKFLR_fetch = {
+var chunk_452Q5GGQ_fetch = {
   info: {
     key: "fetch",
     title: "fetch",
@@ -96858,8 +96855,8 @@ var chunk_532RKFLR_fetch = {
       blank();
     }
     push(`fetch('${fullUrl}', options)`);
-    push(".then(response => response.json())", 1);
-    push(".then(response => console.log(response))", 1);
+    push(".then(res => res.json())", 1);
+    push(".then(res => console.log(res))", 1);
     push(".catch(err => console.error(err));", 1);
     return join();
   }
@@ -96923,8 +96920,8 @@ var jquery = {
     const stringifiedSettings = stringify_object(settings, { indent: opts.indent }).replace("'[form]'", "form");
     push(`const settings = ${stringifiedSettings};`);
     blank();
-    push("$.ajax(settings).done(function (response) {");
-    push("console.log(response);", 1);
+    push("$.ajax(settings).done(res => {");
+    push("console.log(res);", 1);
     push("});");
     return join();
   }
@@ -97001,12 +96998,12 @@ var javascript = {
   info: {
     key: "javascript",
     title: "JavaScript",
-    default: "xhr"
+    default: "fetch"
   },
   clientsById: {
     xhr,
     axios,
-    fetch: chunk_532RKFLR_fetch,
+    fetch: chunk_452Q5GGQ_fetch,
     jquery
   }
 };
@@ -97058,7 +97055,7 @@ var native2 = {
 };
 
 // src/targets/json/target.ts
-var chunk_532RKFLR_json = {
+var chunk_452Q5GGQ_json = {
   info: {
     key: "json",
     title: "JSON",
@@ -97140,7 +97137,7 @@ var axios2 = {
     title: "Axios",
     link: "https://github.com/axios/axios",
     description: "Promise based HTTP client for the browser and node.js",
-    extname: ".cjs",
+    extname: ".js",
     installation: "npm install axios --save"
   },
   convert: ({ method, fullUrl, allHeaders, postData }, options) => {
@@ -97149,7 +97146,8 @@ var axios2 = {
       ...options
     };
     const { blank, join, push, addPostProcessor } = new CodeBuilder({ indent: opts.indent });
-    push("const axios = require('axios');");
+    push("import axios from 'axios';");
+    blank();
     const reqOpts = {
       method,
       url: fullUrl
@@ -97160,8 +97158,6 @@ var axios2 = {
     switch (postData.mimeType) {
       case "application/x-www-form-urlencoded":
         if (postData.params) {
-          push("const { URLSearchParams } = require('url');");
-          blank();
           push("const encodedParams = new URLSearchParams();");
           postData.params.forEach((param) => {
             push(`encodedParams.set('${param.name}', '${param.value}');`);
@@ -97172,13 +97168,11 @@ var axios2 = {
         }
         break;
       case "application/json":
-        blank();
         if (postData.jsonObj) {
           reqOpts.data = postData.jsonObj;
         }
         break;
       default:
-        blank();
         if (postData.text) {
           reqOpts.data = postData.text;
         }
@@ -97188,23 +97182,18 @@ var axios2 = {
     blank();
     push("axios");
     push(".request(options)", 1);
-    push(".then(function (response) {", 1);
-    push("console.log(response.data);", 2);
-    push("})", 1);
-    push(".catch(function (error) {", 1);
-    push("console.error(error);", 2);
-    push("});", 1);
+    push(".then(res => console.log(res.data))", 1);
+    push(".catch(err => console.error(err));", 1);
     return join();
   }
 };
 var fetch2 = {
   info: {
     key: "fetch",
-    title: "Fetch",
-    link: "https://github.com/bitinn/node-fetch",
-    description: "Simplified HTTP node-fetch client",
-    extname: ".cjs",
-    installation: "npm install node-fetch@2 --save"
+    title: "fetch",
+    link: "https://nodejs.org/docs/latest/api/globals.html#fetch",
+    description: "Perform asynchronous HTTP requests with the Fetch API",
+    extname: ".js"
   },
   convert: ({ method, fullUrl, postData, headersObj, cookies }, options) => {
     const opts = {
@@ -97213,7 +97202,6 @@ var fetch2 = {
     };
     let includeFS = false;
     const { blank, push, join, unshift } = new CodeBuilder({ indent: opts.indent });
-    push("const fetch = require('node-fetch');");
     const url = fullUrl;
     const reqOpts = {
       method
@@ -97223,13 +97211,12 @@ var fetch2 = {
     }
     switch (postData.mimeType) {
       case "application/x-www-form-urlencoded":
-        unshift("const { URLSearchParams } = require('url');");
         push("const encodedParams = new URLSearchParams();");
-        blank();
         postData.params?.forEach((param) => {
           push(`encodedParams.set('${param.name}', '${param.value}');`);
         });
         reqOpts.body = "encodedParams";
+        blank();
         break;
       case "application/json":
         if (postData.jsonObj) {
@@ -97244,9 +97231,7 @@ var fetch2 = {
         if (contentTypeHeader) {
           delete headersObj[contentTypeHeader];
         }
-        unshift("const FormData = require('form-data');");
         push("const formData = new FormData();");
-        blank();
         postData.params.forEach((param) => {
           if (!param.fileName && !param.fileName && !param.contentType) {
             push(`formData.append('${param.name}', '${param.value}');`);
@@ -97254,9 +97239,13 @@ var fetch2 = {
           }
           if (param.fileName) {
             includeFS = true;
-            push(`formData.append('${param.name}', fs.createReadStream('${param.fileName}'));`);
+            push(
+              `formData.append('${param.name}', await new Response(fs.createReadStream('${param.fileName}')).blob());`
+            );
           }
         });
+        reqOpts.body = "formData";
+        blank();
         break;
       default:
         if (postData.text) {
@@ -97272,7 +97261,6 @@ var fetch2 = {
         reqOpts.headers.cookie = cookiesString;
       }
     }
-    blank();
     push(`const url = '${url}';`);
     if (reqOpts.headers && !Object.keys(reqOpts.headers).length) {
       delete reqOpts.headers;
@@ -97293,17 +97281,13 @@ var fetch2 = {
     push(`const options = ${stringifiedOptions};`);
     blank();
     if (includeFS) {
-      unshift("const fs = require('fs');");
-    }
-    if (postData.params && postData.mimeType === "multipart/form-data") {
-      push("options.body = formData;");
-      blank();
+      unshift("import fs from 'fs';\n");
     }
     push("fetch(url, options)");
     push(".then(res => res.json())", 1);
     push(".then(json => console.log(json))", 1);
-    push(".catch(err => console.error('error:' + err));", 1);
-    return join().replace(/'encodedParams'/, "encodedParams").replace(/"fs\.createReadStream\(\\"(.+)\\"\)"/, 'fs.createReadStream("$1")');
+    push(".catch(err => console.error(err));", 1);
+    return join().replace(/'encodedParams'/, "encodedParams").replace(/'formData'/, "formData");
   }
 };
 var native3 = {
@@ -97372,201 +97356,17 @@ var native3 = {
     return join();
   }
 };
-var request = {
-  info: {
-    key: "request",
-    title: "Request",
-    link: "https://github.com/request/request",
-    description: "Simplified HTTP request client",
-    extname: ".cjs",
-    installation: "npm install request --save"
-  },
-  convert: ({ method, url, fullUrl, postData, headersObj, cookies }, options) => {
-    const opts = {
-      indent: "  ",
-      ...options
-    };
-    let includeFS = false;
-    const { push, blank, join, unshift, addPostProcessor } = new CodeBuilder({ indent: opts.indent });
-    push("const request = require('request');");
-    blank();
-    const reqOpts = {
-      method,
-      url: fullUrl
-    };
-    if (Object.keys(headersObj).length) {
-      reqOpts.headers = headersObj;
-    }
-    switch (postData.mimeType) {
-      case "application/x-www-form-urlencoded":
-        reqOpts.form = postData.paramsObj;
-        break;
-      case "application/json":
-        if (postData.jsonObj) {
-          reqOpts.body = postData.jsonObj;
-          reqOpts.json = true;
-        }
-        break;
-      case "multipart/form-data":
-        if (!postData.params) {
-          break;
-        }
-        reqOpts.formData = {};
-        postData.params.forEach((param) => {
-          if (!param.fileName && !param.fileName && !param.contentType) {
-            reqOpts.formData[param.name] = param.value;
-            return;
-          }
-          let attachment = {};
-          if (param.fileName) {
-            includeFS = true;
-            attachment = {
-              value: `fs.createReadStream(${param.fileName})`,
-              options: {
-                filename: param.fileName,
-                contentType: param.contentType ? param.contentType : null
-              }
-            };
-          } else if (param.value) {
-            attachment.value = param.value;
-          }
-          reqOpts.formData[param.name] = attachment;
-        });
-        addPostProcessor((code) => code.replace(/'fs\.createReadStream\((.*)\)'/, "fs.createReadStream('$1')"));
-        break;
-      default:
-        if (postData.text) {
-          reqOpts.body = postData.text;
-        }
-    }
-    if (cookies.length) {
-      reqOpts.jar = "JAR";
-      push("const jar = request.jar();");
-      cookies.forEach(({ name, value }) => {
-        push(`jar.setCookie(request.cookie('${encodeURIComponent(name)}=${encodeURIComponent(value)}'), '${url}');`);
-      });
-      blank();
-      addPostProcessor((code) => code.replace(/'JAR'/, "jar"));
-    }
-    if (includeFS) {
-      unshift("const fs = require('fs');");
-    }
-    push(`const options = ${stringify_object(reqOpts, { indent: "  ", inlineCharacterLimit: 80 })};`);
-    blank();
-    push("request(options, function (error, response, body) {");
-    push("if (error) throw new Error(error);", 1);
-    blank();
-    push("console.log(body);", 1);
-    push("});");
-    return join();
-  }
-};
-var unirest2 = {
-  info: {
-    key: "unirest",
-    title: "Unirest",
-    link: "http://unirest.io/nodejs.html",
-    description: "Lightweight HTTP Request Client Library",
-    extname: ".cjs"
-  },
-  convert: ({ method, url, cookies, queryObj, postData, headersObj }, options) => {
-    const opts = {
-      indent: "  ",
-      ...options
-    };
-    let includeFS = false;
-    const { addPostProcessor, blank, join, push, unshift } = new CodeBuilder({
-      indent: opts.indent
-    });
-    push("const unirest = require('unirest');");
-    blank();
-    push(`const req = unirest('${method}', '${url}');`);
-    blank();
-    if (cookies.length) {
-      push("const CookieJar = unirest.jar();");
-      cookies.forEach((cookie) => {
-        push(`CookieJar.add('${encodeURIComponent(cookie.name)}=${encodeURIComponent(cookie.value)}', '${url}');`);
-      });
-      push("req.jar(CookieJar);");
-      blank();
-    }
-    if (Object.keys(queryObj).length) {
-      push(`req.query(${stringify_object(queryObj, { indent: opts.indent })});`);
-      blank();
-    }
-    if (Object.keys(headersObj).length) {
-      push(`req.headers(${stringify_object(headersObj, { indent: opts.indent })});`);
-      blank();
-    }
-    switch (postData.mimeType) {
-      case "application/x-www-form-urlencoded":
-        if (postData.paramsObj) {
-          push(`req.form(${stringify_object(postData.paramsObj, { indent: opts.indent })});`);
-          blank();
-        }
-        break;
-      case "application/json":
-        if (postData.jsonObj) {
-          push("req.type('json');");
-          push(`req.send(${stringify_object(postData.jsonObj, { indent: opts.indent })});`);
-          blank();
-        }
-        break;
-      case "multipart/form-data": {
-        if (!postData.params) {
-          break;
-        }
-        const multipart = [];
-        postData.params.forEach((param) => {
-          const part = {};
-          if (param.fileName && !param.value) {
-            includeFS = true;
-            part.body = `fs.createReadStream('${param.fileName}')`;
-            addPostProcessor((code) => code.replace(/'fs\.createReadStream\(\\'(.+)\\'\)'/, "fs.createReadStream('$1')"));
-          } else if (param.value) {
-            part.body = param.value;
-          }
-          if (part.body) {
-            if (param.contentType) {
-              part["content-type"] = param.contentType;
-            }
-            multipart.push(part);
-          }
-        });
-        push(`req.multipart(${stringify_object(multipart, { indent: opts.indent })});`);
-        blank();
-        break;
-      }
-      default:
-        if (postData.text) {
-          push(`req.send(${stringify_object(postData.text, { indent: opts.indent })});`);
-          blank();
-        }
-    }
-    if (includeFS) {
-      unshift("const fs = require('fs');");
-    }
-    push("req.end(function (res) {");
-    push("if (res.error) throw new Error(res.error);", 1);
-    blank();
-    push("console.log(res.body);", 1);
-    push("});");
-    return join();
-  }
-};
 
 // src/targets/node/target.ts
 var node = {
   info: {
     key: "node",
     title: "Node.js",
-    default: "native",
+    default: "fetch",
     cli: "node %s"
   },
   clientsById: {
     native: native3,
-    request,
-    unirest: unirest2,
     axios: axios2,
     fetch: fetch2
   }
@@ -97810,7 +97610,7 @@ var convertType = (obj, indent, lastIndent) => {
     case "[object Undefined]":
       return "null";
     case "[object String]":
-      return `'${chunk_532RKFLR_escapeString(obj, { delimiter: "'", escapeNewlines: false })}'`;
+      return `'${chunk_452Q5GGQ_escapeString(obj, { delimiter: "'", escapeNewlines: false })}'`;
     case "[object Number]":
       return obj.toString();
     case "[object Array]": {
@@ -97836,7 +97636,7 @@ ${lastIndent}]`;
       return "null";
   }
 };
-var chunk_532RKFLR_supportedMethods = [
+var chunk_452Q5GGQ_supportedMethods = [
   "ACL",
   "BASELINE_CONTROL",
   "CHECKIN",
@@ -98099,12 +97899,12 @@ var http1 = {
       push(shortTags ? "<?" : "<?php");
       blank();
     }
-    if (!chunk_532RKFLR_supportedMethods.includes(method.toUpperCase())) {
+    if (!chunk_452Q5GGQ_supportedMethods.includes(method.toUpperCase())) {
       push(`HttpRequest::methodRegister('${method}');`);
     }
     push("$request = new HttpRequest();");
     push(`$request->setUrl(${convertType(url)});`);
-    if (chunk_532RKFLR_supportedMethods.includes(method.toUpperCase())) {
+    if (chunk_452Q5GGQ_supportedMethods.includes(method.toUpperCase())) {
       push(`$request->setMethod(HTTP_METH_${method.toUpperCase()});`);
     } else {
       push(`$request->setMethod(HttpRequest::HTTP_METH_${method.toUpperCase()});`);
@@ -98291,7 +98091,7 @@ var generatePowershellConvert = (command) => {
       push("$headers=@{}");
       headers.forEach((key) => {
         if (key !== "connection") {
-          push(`$headers.Add("${key}", "${chunk_532RKFLR_escapeString(headersObj[key], { escapeChar: "`" })}")`);
+          push(`$headers.Add("${key}", "${chunk_452Q5GGQ_escapeString(headersObj[key], { escapeChar: "`" })}")`);
         }
       });
       commandOptions.push("-Headers $headers");
@@ -98309,7 +98109,7 @@ var generatePowershellConvert = (command) => {
     }
     if (postData.text) {
       commandOptions.push(
-        `-ContentType '${chunk_532RKFLR_escapeString(getHeader(allHeaders, "content-type"), { delimiter: "'", escapeChar: "`" })}'`
+        `-ContentType '${chunk_452Q5GGQ_escapeString(getHeader(allHeaders, "content-type"), { delimiter: "'", escapeChar: "`" })}'`
       );
       commandOptions.push(`-Body '${postData.text}'`);
     }
@@ -98517,22 +98317,22 @@ var requests = {
       push("}");
       blank();
     }
-    let request2 = builtInMethods.includes(method) ? `response = requests.${method.toLowerCase()}(url` : `response = requests.request("${method}", url`;
+    let request = builtInMethods.includes(method) ? `response = requests.${method.toLowerCase()}(url` : `response = requests.request("${method}", url`;
     if (hasPayload) {
       if (jsonPayload) {
-        request2 += ", json=payload";
+        request += ", json=payload";
       } else {
-        request2 += ", data=payload";
+        request += ", data=payload";
       }
     }
     if (hasFiles) {
-      request2 += ", files=files";
+      request += ", files=files";
     }
     if (headerCount > 0) {
-      request2 += ", headers=headers";
+      request += ", headers=headers";
     }
-    request2 += ")";
-    push(request2);
+    request += ")";
+    push(request);
     blank();
     push("print(response.text)");
     return join();
@@ -98617,22 +98417,22 @@ var httr = {
     const setContentType = `content_type("${escapeForDoubleQuotes(postData.mimeType)}")`;
     const otherHeaders = Object.entries(allHeaders).filter(([key]) => !["cookie", "accept", "content-type"].includes(key.toLowerCase())).map(([key, value]) => `'${key}' = '${escapeForSingleQuotes(value)}'`).join(", ");
     const setHeaders = otherHeaders ? `add_headers(${otherHeaders})` : void 0;
-    let request2 = `response <- VERB("${method}", url`;
+    let request = `response <- VERB("${method}", url`;
     if (payload) {
-      request2 += ", body = payload";
+      request += ", body = payload";
     }
     if (queryString.length) {
-      request2 += ", query = queryString";
+      request += ", query = queryString";
     }
     const headerAdditions = [setHeaders, setContentType, setAccept, setCookies].filter((x) => !!x).join(", ");
     if (headerAdditions) {
-      request2 += `, ${headerAdditions}`;
+      request += `, ${headerAdditions}`;
     }
     if (postData.text || postData.jsonObj || postData.params) {
-      request2 += ", encode = encode";
+      request += ", encode = encode";
     }
-    request2 += ")";
-    push(request2);
+    request += ")";
+    push(request);
     blank();
     push('content(response, "text")');
     return join();
@@ -98734,7 +98534,7 @@ var quote = (value = "") => {
   }
   return `'${value.replace(/'/g, "'\\''")}'`;
 };
-var chunk_532RKFLR_escape = (value) => value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+var chunk_452Q5GGQ_escape = (value) => value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
 
 // src/targets/shell/curl/client.ts
 var params = {
@@ -99000,7 +98800,7 @@ ${opts.indent}` : " "
       push(`--header ${quote(header)}`);
     });
     if (postData.text) {
-      push(`--body-data ${chunk_532RKFLR_escape(quote(postData.text))}`);
+      push(`--body-data ${chunk_452Q5GGQ_escape(quote(postData.text))}`);
     }
     push(opts.short ? "-O" : "--output-document");
     push(`- ${quote(fullUrl)}`);
@@ -99205,7 +99005,7 @@ var swift = {
 };
 
 // src/targets/index.ts
-var chunk_532RKFLR_targets = {
+var chunk_452Q5GGQ_targets = {
   c,
   clojure,
   csharp,
@@ -99213,7 +99013,7 @@ var chunk_532RKFLR_targets = {
   http,
   java,
   javascript,
-  json: chunk_532RKFLR_json,
+  json: chunk_452Q5GGQ_json,
   kotlin,
   node,
   objc,
@@ -99240,7 +99040,7 @@ var isTarget = (target) => {
   if (!target.info.key) {
     throw new Error("target key must be a unique string");
   }
-  if (Object.prototype.hasOwnProperty.call(chunk_532RKFLR_targets, target.info.key)) {
+  if (Object.prototype.hasOwnProperty.call(chunk_452Q5GGQ_targets, target.info.key)) {
     throw new Error(`a target already exists with this key, \`${target.info.key}\``);
   }
   if (!Object.prototype.hasOwnProperty.call(target.info, "title")) {
@@ -99269,7 +99069,7 @@ var isTarget = (target) => {
 };
 var addTarget = (target) => {
   if (!isTarget(target)) ;
-  chunk_532RKFLR_targets[target.info.key] = target;
+  chunk_452Q5GGQ_targets[target.info.key] = target;
 };
 var isClient = (client) => {
   if (!client) {
@@ -99306,21 +99106,21 @@ var addClientPlugin = (plugin) => {
 };
 var addTargetClient = (targetId, client) => {
   if (!isClient(client)) ;
-  if (!Object.prototype.hasOwnProperty.call(chunk_532RKFLR_targets, targetId)) {
+  if (!Object.prototype.hasOwnProperty.call(chunk_452Q5GGQ_targets, targetId)) {
     throw new Error(`Sorry, but no ${targetId} target exists to add clients to`);
   }
-  if (Object.prototype.hasOwnProperty.call(chunk_532RKFLR_targets[targetId], client.info.key)) {
+  if (Object.prototype.hasOwnProperty.call(chunk_452Q5GGQ_targets[targetId], client.info.key)) {
     throw new Error(
       `the target ${targetId} already has a client with the key ${client.info.key}, please use a different key`
     );
   }
-  chunk_532RKFLR_targets[targetId].clientsById[client.info.key] = client;
+  chunk_452Q5GGQ_targets[targetId].clientsById[client.info.key] = client;
 };
 
 
-//# sourceMappingURL=chunk-532RKFLR.js.map
-//# sourceMappingURL=chunk-532RKFLR.js.map
-;// CONCATENATED MODULE: ./node_modules/@readme/oas-to-snippet/dist/chunk-RTL2D7OL.js
+//# sourceMappingURL=chunk-452Q5GGQ.js.map
+//# sourceMappingURL=chunk-452Q5GGQ.js.map
+;// CONCATENATED MODULE: ./node_modules/@readme/oas-to-snippet/dist/chunk-OXWBC2IV.js
 // src/languages.ts
 
 var DEFAULT_LANGUAGES = {
@@ -99547,7 +99347,7 @@ function getSupportedLanguages({
   plugins
 } = { plugins: [] }) {
   const languages = JSON.parse(JSON.stringify(DEFAULT_LANGUAGES));
-  Object.entries(chunk_532RKFLR_targets).forEach(([target, { clientsById }]) => {
+  Object.entries(chunk_452Q5GGQ_targets).forEach(([target, { clientsById }]) => {
     if (!(target in languages)) {
       return;
     }
@@ -99606,7 +99406,7 @@ function getClientInstallationInstructions(languages, lang, registryIdentifier) 
 }
 
 
-//# sourceMappingURL=chunk-RTL2D7OL.js.map
+//# sourceMappingURL=chunk-OXWBC2IV.js.map
 ;// CONCATENATED MODULE: ./node_modules/@readme/httpsnippet/dist/chunk-KT7MO6Z4.js
 // src/helpers/reducer.ts
 var reducer = (accumulator, pair) => {
@@ -99851,7 +99651,7 @@ var HTTPSnippet = class {
     if (!options && clientId) {
       options = clientId;
     }
-    const target = chunk_532RKFLR_targets[targetId];
+    const target = chunk_452Q5GGQ_targets[targetId];
     if (!target) {
       return false;
     }
@@ -99865,21 +99665,17 @@ var HTTPSnippet = class {
 
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map
-;// CONCATENATED MODULE: ./node_modules/@readme/oas-to-har/dist/chunk-B6VBOO2O.js
+;// CONCATENATED MODULE: ./node_modules/@readme/oas-to-har/dist/chunk-IYAKHQZB.js
 // src/lib/configure-security.ts
 
 function harValue(type, value) {
-  if (!value.value)
-    return void 0;
+  if (!value.value) return void 0;
   return { type, value };
 }
 function configureSecurity(apiDefinition, values, scheme) {
-  if (!scheme)
-    return void 0;
-  if (Object.keys(values || {}).length === 0)
-    return void 0;
-  if (!apiDefinition.components?.securitySchemes?.[scheme])
-    return void 0;
+  if (!scheme) return void 0;
+  if (Object.keys(values || {}).length === 0) return void 0;
+  if (!apiDefinition.components?.securitySchemes?.[scheme]) return void 0;
   const security = apiDefinition.components.securitySchemes[scheme];
   if (isRef(security)) {
     return void 0;
@@ -99889,10 +99685,8 @@ function configureSecurity(apiDefinition, values, scheme) {
   if (security.type === "http") {
     if (security.scheme === "basic") {
       const auth = values[scheme];
-      if (typeof auth !== "object")
-        return false;
-      if (!auth.user && !auth.pass)
-        return false;
+      if (typeof auth !== "object") return false;
+      if (!auth.user && !auth.pass) return false;
       let user = auth.user ?? null;
       if (user === null || user.length === 0) {
         user = "";
@@ -99946,7 +99740,7 @@ function configureSecurity(apiDefinition, values, scheme) {
 }
 
 
-//# sourceMappingURL=chunk-B6VBOO2O.js.map
+//# sourceMappingURL=chunk-IYAKHQZB.js.map
 ;// CONCATENATED MODULE: ./node_modules/@readme/data-urls/dist/index.js
 // src/index.ts
 var DATA_URL_REGEX = /^data:([a-z]+\/[a-z0-9-+.]+(;[a-z0-9-.!#$%*+.{}|~`]+=[a-z0-9-.!#$%*+.{}()_|~`]+)*)?(;base64)?,([a-z0-9!$&',()*+;=\-._~:@/?%\s<>]*?)$/i;
@@ -99998,8 +99792,7 @@ function parse(str) {
 
 // src/lib/lodash.ts
 function get(object, path) {
-  if (!path)
-    return void 0;
+  if (!path) return void 0;
   const pathArray = String(path).match(/([^[.\]])+/g);
   const result = pathArray?.reduce((prevObj, key) => prevObj && prevObj[key], object);
   return result;
@@ -100092,10 +99885,25 @@ function encodeArray({
     isAllowedReserved
   });
   switch (style) {
+    /**
+     * @example <caption>`style: simple`</caption>
+     * `["blue","black","brown"]` → `blue,black,brown`
+     */
     case "simple":
       return value.map((val) => valueEncoder(val)).join(",");
+    /**
+     * @example <caption>`style: label`</caption>
+     * `["blue","black","brown"]` → `.blue.black.brown`
+     */
     case "label":
       return `.${value.map((val) => valueEncoder(val)).join(".")}`;
+    /**
+     * @example <caption>`style: matrix` + `explode: true`</caption>
+     * `["blue","black","brown"]` → `;color=blue;color=black;color=brown`
+     *
+     * @example <caption>`style: matrix` + `explode: false` (the default behavior)</caption>
+     * `["blue","black","brown"]` → `;color=blue,black,brown	`
+     */
     case "matrix":
       return value.map((val) => valueEncoder(val)).reduce((prev, curr) => {
         if (!prev || explode) {
@@ -100103,10 +99911,25 @@ function encodeArray({
         }
         return `${prev},${curr}`;
       }, "");
+    /**
+     * @example <caption>`style: form` + `explode: true`</caption>
+     * `["blue","black","brown"]` → `color=blue&color=black&color=brown`
+     *
+     * @example <caption>`style: form` + `explode: false` (the default behavior)</caption>
+     * `["blue","black","brown"]` → `color=blue,black,brown`
+     */
     case "form":
       return value.map((val) => valueEncoder(val)).join(explode ? `&${key}=` : ",");
+    /**
+     * @example <caption>`style: spaceDelimited`</caption>
+     * `["blue","black","brown"]` → `blue%20black%20brown`
+     */
     case "spaceDelimited":
       return value.map((val) => valueEncoder(val)).join(` ${explode ? `${key}=` : ""}`);
+    /**
+     * @example <caption>`style: pipeDelimited`</caption>
+     * `["blue","black","brown"]` → `blue|black|brown`
+     */
     case "pipeDelimited":
       return value.map((val) => valueEncoder(val)).join(`|${explode ? `${key}=` : ""}`);
     default:
@@ -100121,6 +99944,13 @@ function encodeObject({ location, key, value, style, explode, escape, isAllowedR
   });
   const valueKeys = Object.keys(value);
   switch (style) {
+    /**
+     * @example <caption>`style: simple` + `explode: true`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `R=100,G=200,B=150`
+     *
+     * @example <caption>`style: simple` + `explode: false` (the default behavior)</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `R,100,G,200,B,150`
+     */
     case "simple":
       return valueKeys.reduce((prev, curr) => {
         const val = valueEncoder(value[curr]);
@@ -100128,6 +99958,13 @@ function encodeObject({ location, key, value, style, explode, escape, isAllowedR
         const prefix = prev ? `${prev},` : "";
         return `${prefix}${curr}${middleChar}${val}`;
       }, "");
+    /**
+     * @example <caption>`style: label` + `explode: true`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `.R=100.G=200.B=150`
+     *
+     * @example <caption>`style: label` + `explode: false` (the default behavior)</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `.R.100.G.200.B.150`
+     */
     case "label":
       return valueKeys.reduce((prev, curr) => {
         const val = valueEncoder(value[curr]);
@@ -100135,6 +99972,13 @@ function encodeObject({ location, key, value, style, explode, escape, isAllowedR
         const prefix = prev ? `${prev}.` : ".";
         return `${prefix}${curr}${middleChar}${val}`;
       }, "");
+    /**
+     * @example <caption>`style: matrix` + `explode: true`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `;R=100;G=200;B=150`
+     *
+     * @example <caption>`style: matrix` + `explode: false` (the default behavior)</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `;color=R,100,G,200,B,150`
+     */
     case "matrix":
       if (explode) {
         return valueKeys.reduce((prev, curr) => {
@@ -100148,6 +99992,13 @@ function encodeObject({ location, key, value, style, explode, escape, isAllowedR
         const prefix = prev ? `${prev},` : `;${key}=`;
         return `${prefix}${curr},${val}`;
       }, "");
+    /**
+     * @example <caption>`style: form` + `explode: true`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `R=100&G=200&B=150`
+     *
+     * @example <caption>`style: form` + `explode: false` (the default behavior)</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `color=R,100,G,200,B,150`
+     */
     case "form":
       return valueKeys.reduce((prev, curr) => {
         const val = valueEncoder(value[curr]);
@@ -100155,18 +100006,30 @@ function encodeObject({ location, key, value, style, explode, escape, isAllowedR
         const separator = explode ? "=" : ",";
         return `${prefix}${curr}${separator}${val}`;
       }, "");
+    /**
+     * @example <caption>`style: spaceDelimited`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `R%20100%20G%20200%20B%20150`
+     */
     case "spaceDelimited":
       return valueKeys.reduce((prev, curr) => {
         const val = valueEncoder(value[curr]);
         const prefix = prev ? `${prev} ` : "";
         return `${prefix}${curr} ${val}`;
       }, "");
+    /**
+     * @example <caption>`style: pipeDelimited`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `R|100|G|200|B|150`
+     */
     case "pipeDelimited":
       return valueKeys.reduce((prev, curr) => {
         const val = valueEncoder(value[curr]);
         const prefix = prev ? `${prev}|` : "";
         return `${prefix}${curr}|${val}`;
       }, "");
+    /**
+     * @example <caption>`style: deepObject`</caption>
+     * `{ "R": 100, "G": 200, "B": 150 }` → `color[R]=100&color[G]=200&color[B]=150`
+     */
     case "deepObject":
       return valueKeys.reduce((curr) => {
         const val = valueEncoder(value[curr]);
@@ -100183,17 +100046,37 @@ function encodePrimitive({ location, key, value, style, escape, isAllowedReserve
     isAllowedReserved
   });
   switch (style) {
+    /**
+     * @example <caption>`style: simple`</caption>
+     * `blue` → `blue`
+     */
     case "simple":
       return valueEncoder(value);
+    /**
+     * @example <caption>`style: label`</caption>
+     * `blue` → `.blue`
+     */
     case "label":
       return `.${valueEncoder(value)}`;
+    /**
+     * @example <caption>`style: matrix`</caption>
+     * `blue` → `;color=blue`
+     */
     case "matrix":
       if (value === "") {
         return `;${key}`;
       }
       return `;${key}=${valueEncoder(value)}`;
+    /**
+     * @example <caption>`style: form`</caption>
+     * `blue` → `color=blue`
+     */
     case "form":
       return valueEncoder(value);
+    /**
+     * @example <caption>`style: deepObject`</caption>
+     * `blue` → n/a
+     */
     case "deepObject":
       return valueEncoder(value);
     default:
@@ -100508,8 +100391,7 @@ function stringifyParameter(param) {
   return JSON.stringify(param);
 }
 function appendHarValue(harParam, name, value, addtlData = {}) {
-  if (typeof value === "undefined")
-    return;
+  if (typeof value === "undefined") return;
   if (Array.isArray(value)) {
     value.forEach((singleValue) => {
       appendHarValue(harParam, name, singleValue);
@@ -100537,11 +100419,7 @@ function encodeBodyForHAR(body) {
   }
   return stringify(body);
 }
-function oasToHar(oas, operationSchema, values = {}, auth = {}, opts = {
-  // If true, the operation URL will be rewritten and prefixed with https://try.readme.io/ in
-  // order to funnel requests through our CORS-friendly proxy.
-  proxyUrl: false
-}) {
+function oasToHar(oas, operationSchema, values = {}, auth = {}, opts = { proxyUrl: "" }) {
   let operation;
   if (!operationSchema || typeof operationSchema.getParameters !== "function") {
     operation = new Operation(
@@ -100585,13 +100463,12 @@ function oasToHar(oas, operationSchema, values = {}, auth = {}, opts = {
   };
   if (opts.proxyUrl) {
     if (oas.getExtension(PROXY_ENABLED, operation)) {
-      har.url = `https://try.readme.io/${har.url}`;
+      har.url = `${opts.proxyUrl}/${har.url}`;
     }
   }
   const parameters = operation.getParameters();
   har.url = har.url.replace(/{([-_a-zA-Z0-9[\]]+)}/g, (full, key) => {
-    if (!operation || !parameters)
-      return key;
+    if (!operation || !parameters) return key;
     const parameter = parameters.find((param) => param.name === key) || { name: key };
     if (!("style" in parameter) || !parameter.style) {
       return encodeURIComponent(formatter(formData, parameter, "path"));
@@ -100614,13 +100491,10 @@ function oasToHar(oas, operationSchema, values = {}, auth = {}, opts = {
   }
   if (operation.schema.responses) {
     Object.keys(operation.schema.responses).some((response) => {
-      if (isRef(operation.schema.responses?.[response]))
-        return false;
+      if (isRef(operation.schema.responses?.[response])) return false;
       const content = (operation.schema.responses?.[response]).content;
-      if (!content)
-        return false;
-      if (Object.keys(formData.header || {}).find((h) => h.toLowerCase() === "accept"))
-        return true;
+      if (!content) return false;
+      if (Object.keys(formData.header || {}).find((h) => h.toLowerCase() === "accept")) return true;
       har.headers.push({
         name: "accept",
         value: getResponseContentType(content)
@@ -100634,8 +100508,7 @@ function oasToHar(oas, operationSchema, values = {}, auth = {}, opts = {
   if (headers && headers.length) {
     headers.forEach((header) => {
       const value = formatter(formData, header, "header", true);
-      if (typeof value === "undefined")
-        return;
+      if (typeof value === "undefined") return;
       if (header.name.toLowerCase() === "content-type") {
         hasContentType = true;
         contentType = String(value);
