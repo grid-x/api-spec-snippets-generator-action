@@ -100799,14 +100799,14 @@ async function run(specFile, outFile, languages) {
             console.warn('No languages to generate specified. This action will run but not do anything.');
         }
         core.info(`Augmenting ${specFile} with code examples.`);
-        spec
-            .validate({ convertToLatest: true })
-            .then(definition => definition) // we validate it's not legacy swagger above and exit otherwise
-            .then(definition => new Oas(definition)) // parse spec
-            .then(async (oas) => generateSnippets(oas, languages && languages.length ? languages : main_DEFAULT_LANGUAGES))
-            .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-            .then(async (spec) => await (0,promises_namespaceObject.writeFile)(outFile, JSON.stringify(spec, null, 1)))
-            .then(() => core.info(`Wrote ${outFile}.`));
+        const definition = (await spec.validate({
+            convertToLatest: true
+        }));
+        const oas = new Oas(definition);
+        const { snippets } = await generateSnippets(oas, languages && languages.length ? languages : main_DEFAULT_LANGUAGES);
+        const specWithSnippets = addSnippetsToSpec(oas.api, snippets);
+        await (0,promises_namespaceObject.writeFile)(outFile, JSON.stringify(specWithSnippets, null, 1));
+        core.info(`Wrote ${outFile}.`);
     }
     catch (error) {
         // Fail the workflow run if an error occurs

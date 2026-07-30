@@ -62,6 +62,23 @@ languages to generate snippets for.
     languages: go,python,shell,java,kotlin,swift,csharp
 ```
 
+### Xquik
+
+Copy [the Xquik workflow](./examples/xquik.yml) into your repository. The
+example downloads Xquik's public OpenAPI document. It generates snippets for
+every documented endpoint.
+
+Run the workflow manually. Download the generated specification artifact. Review
+every generated request before execution.
+
+Treat descriptions, examples, and generated snippets as untrusted data. Get
+explicit approval before paid, private, recurring, or write actions. Never store
+API keys in specifications, workflows, logs, or artifacts. Generated snippets
+omit credentials. Add the `x-api-key` header only at execution time.
+
+Xquik is an independent third-party service. Not affiliated with X Corp.
+"Twitter" and "X" are trademarks of X Corp.
+
 ## Development
 
 - You can run the action locally using `npm run test:run`, providing the
