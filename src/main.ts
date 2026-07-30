@@ -52,21 +52,18 @@ export async function run(
       )
     }
     core.info(`Augmenting ${specFile} with code examples.`)
-    spec
-      .validate({ convertToLatest: true })
-      .then(definition => definition as OASDocument) // we validate it's not legacy swagger above and exit otherwise
-      .then(definition => new Oas(definition)) // parse spec
-      .then(async oas =>
-        generateSnippets(
-          oas,
-          languages && languages.length ? languages : DEFAULT_LANGUAGES
-        )
-      )
-      .then(({ oas, snippets }) => addSnippetsToSpec(oas.api, snippets))
-      .then(
-        async spec => await writeFile(outFile, JSON.stringify(spec, null, 1))
-      )
-      .then(() => core.info(`Wrote ${outFile}.`))
+    const definition = (await spec.validate({
+      convertToLatest: true
+    })) as OASDocument
+    const oas = new Oas(definition)
+    const { snippets } = await generateSnippets(
+      oas,
+      languages && languages.length ? languages : DEFAULT_LANGUAGES
+    )
+    const specWithSnippets = addSnippetsToSpec(oas.api, snippets)
+
+    await writeFile(outFile, JSON.stringify(specWithSnippets, null, 1))
+    core.info(`Wrote ${outFile}.`)
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)

@@ -1,0 +1,30 @@
+name: Generate Xquik Code Samples
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download Xquik OpenAPI
+        run: >-
+          curl --fail --location --retry 3 --show-error
+          https://xquik.com/openapi.json --output xquik-openapi.json
+
+      - name: Generate code samples
+        uses: grid-x/api-spec-snippets-generator-action@v9
+        with:
+          spec_file: xquik-openapi.json
+          out_file: xquik-openapi-with-samples.json
+          languages: shell,python,javascript
+
+      - name: Upload generated specification
+        uses: actions/upload-artifact@v4
+        with:
+          name: xquik-openapi-with-samples
+          path: xquik-openapi-with-samples.json
